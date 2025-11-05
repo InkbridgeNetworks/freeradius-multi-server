@@ -1,0 +1,78 @@
+x-common-config: &id001
+  cap_add:
+  - NET_ADMIN
+  - SYS_PTRACE
+services:
+  mariadb:
+    image: mariadb:10.5
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: radius
+      MYSQL_USER: radius
+      MYSQL_PASSWORD: radpass
+    restart: unless-stopped
+    volumes:
+    - ${DATA_PATH}/mariadb/default/init.sql:/docker-entrypoint-initdb.d/init.sql
+    <<: *id001
+  homeserver:
+    image: fr-build-ubuntu22
+    depends_on:
+    - mariadb
+    volumes:
+    - ${DATA_PATH}/freeradius/default/trigger.conf:/etc/raddb/trigger.conf
+    - ${DATA_PATH}/freeradius/default/radiusd.conf:/etc/raddb/radiusd.conf
+    - ${DATA_PATH}/freeradius/default/clients.conf:/etc/raddb/clients.conf
+    - ${DATA_PATH}/freeradius/default/mods-available/linelog:/etc/raddb/mods-available/linelog
+    - ${DATA_PATH}/freeradius/default/mods-available/sql:/etc/raddb/mods-available/sql
+    - ${DATA_PATH}/freeradius/default/mods-config/files/authorize:/etc/raddb/mods-config/files/authorize
+    - ${DATA_PATH}/freeradius/default/sites-available/default:/etc/raddb/sites-available/default
+    - ${DATA_PATH}/freeradius/env-setup.sh:/tmp/env-setup.sh
+    - /var/run/multi-test/${COMPOSE_PROJECT_NAME}.sock:/var/run/test.sock
+    command: radiusd -X
+    restart: unless-stopped
+    entrypoint:
+    - bash
+    - -c
+    - |
+      apt-get update && \
+      source /tmp/env-setup.sh && \
+      ln -sf /etc/raddb/mods-available/json /etc/raddb/mods-enabled/json && \
+      ln -sf /etc/raddb/mods-available/sql /etc/raddb/mods-enabled/sql && \
+      exec /docker-entrypoint.sh "$@"
+    <<: *id001
+  freeradius:
+    image: fr-build-ubuntu22
+    depends_on:
+    - homeserver
+    volumes:
+    - ${DATA_PATH}/freeradius/proxy/radiusd.conf:/etc/raddb/radiusd.conf
+    - ${DATA_PATH}/freeradius/proxy/clients.conf:/etc/raddb/clients.conf
+    - ${DATA_PATH}/freeradius/proxy/sites-available/default:/etc/raddb/sites-available/default
+    - ${DATA_PATH}/freeradius/proxy/mods-available/radius:/etc/raddb/mods-available/radius
+    - ${DATA_PATH}/freeradius/proxy/mods-available/linelog:/etc/raddb/mods-available/linelog
+    - ${DATA_PATH}/freeradius/env-setup.sh:/tmp/env-setup.sh
+    - /var/run/multi-test/${COMPOSE_PROJECT_NAME}.sock:/var/run/test.sock
+    command: radiusd -X
+    restart: unless-stopped
+    entrypoint:
+    - bash
+    - -c
+    - |
+      apt-get update && \
+      source /tmp/env-setup.sh && \
+      ln -sf /etc/raddb/mods-available/radius /etc/raddb/mods-enabled/radius && \
+      exec /docker-entrypoint.sh "$@"
+    <<: *id001
+  radius-client:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM ubuntu:22.04
+        RUN apt-get update && apt-get install -y freeradius-utils wait-for-it && apt-get clean
+    tty: false
+    restart: 'no'
+    stop_grace_period: 2s
+    command:
+    - sleep
+    - infinity
+    <<: *id001
