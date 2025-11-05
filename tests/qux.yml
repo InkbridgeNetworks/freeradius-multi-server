@@ -1,0 +1,54 @@
+timeout: 40
+state_order: sequence
+states:
+  state_1:
+    description: Basic access-request test
+    host:
+      radius-client:
+        actions:
+        - access_request:
+            target: freeradius
+            secret: testing123
+            username: testuser
+            password: testpass
+    verify:
+      timeout: 15
+      trigger_mode: unordered
+      triggers:
+      - request_sent:
+          code:
+            block: |
+              import re
+
+              pattern = re.compile(r'(\w+) request sent')
+              match = pattern.match(string)
+              if match:
+                  logger.debug("Matched request_sent pattern: %s", pattern.pattern)
+                  return True
+              logger.debug("Did not match request_sent pattern: %s", pattern.pattern)
+              return False
+      - request_complete:
+          pattern:
+            reg_pattern: (\w+) request complete
+  state_2:
+    description: Introduce 100% packet loss on the radius server
+    host:
+      freeradius:
+        actions:
+        - packet_loss:
+            interface: eth0
+            loss: 100
+      radius-client:
+        actions:
+        - access_request:
+            target: freeradius
+            secret: testing123
+            username: testuser
+            password: testpass
+    verify:
+      timeout: 15
+      trigger_mode: unordered
+      triggers:
+      - request_complete:
+          fail:
+            msg: "Request complete should not have fired"

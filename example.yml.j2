@@ -1,0 +1,116 @@
+{% set image_name = "ubuntu:22.04" %}
+{% set network_id = "default_network" %}
+{% set remote_unix_socket_path = "/var/run/test.sock" %}
+{% set local_unix_socket_path = "/var/run/multi-test/${COMPOSE_PROJECT_NAME}.sock" %}
+{% set local_raddb_path = os.getenv("DATA_PATH", "") + "/freeradius/default" %}
+{% set local_mariadb_path = "${DATA_PATH}/mariadb/default" %}
+
+{% set modules = [
+    "json",
+    "sql",
+] %}
+
+fixtures:
+  networks:
+    default:
+        name: {{ network_id }}
+  hosts:
+    mariadb:
+        image: mariadb:10.5
+        environment:
+            MYSQL_ROOT_PASSWORD: rootpass
+            MYSQL_DATABASE: radius
+            MYSQL_USER: radius
+            MYSQL_PASSWORD: radpass
+        restart: unless-stopped
+        volumes:
+            - {{ local_mariadb_path }}/init.sql:/docker-entrypoint-initdb.d/init.sql
+    freeradius:
+        image: fr-build-ubuntu22
+        depends_on:
+            - mariadb
+        volumes:
+            {%- for root, dirs, files in os.walk(local_raddb_path) %}
+              {%- for file in files %}
+              {%- set abs_path = root + '/' + file %}
+              {%- set rel_path = abs_path | replace(local_raddb_path + '/', '') %}
+            - ${DATA_PATH}/freeradius/default/{{ rel_path }}:/etc/raddb/{{ rel_path }}
+              {%- endfor %}
+            {%- endfor %}
+            - ${DATA_PATH}/freeradius/env-setup.sh:/tmp/env-setup.sh
+            - {{ local_unix_socket_path }}:{{ remote_unix_socket_path }}
+        command: radiusd -X
+        restart: unless-stopped
+        entrypoint:
+          - "bash"
+          - "-c"
+          - |
+            apt-get update && \
+            source /tmp/env-setup.sh && \
+            {%- for module in modules %}
+            ln -sf /etc/raddb/mods-available/{{ module }} /etc/raddb/mods-enabled/{{ module }}
+            {%- endfor %}
+            exec /docker-entrypoint.sh "$@"
+
+    radius-client:
+        build:
+            context: .
+            dockerfile_inline: |
+                FROM {{ image_name }}
+                RUN apt-get update && apt-get install -y freeradius-utils wait-for-it && apt-get clean
+        tty: false
+        restart: "no"
+        stop_grace_period: 2s
+        command: ["sleep", "infinity"]
+
+timeout: 35
+state_order: sequence
+states:
+  # Test name
+  state_1:
+    description: Basic access-request test
+    host:
+      radius-client:
+        # Commands to execute as we transition state
+        actions:
+          - access_request:
+              target: freeradius
+              secret: testing123
+              username: testuser
+              password: testpass
+          - execute_command:
+              command: echo testpass | radtest testuser testpass freeradius 0 testing123 || true
+    verify:
+      timeout: 15  # How long to wait for all triggers to be received
+      triggers:
+        - request_sent:
+            pattern:
+              reg_pattern: (\w+) request sent
+        - request_complete:
+            pattern:
+              reg_pattern: (\w+) request complete
+
+  state_2:
+    description: Introduce 100% packet loss on the radius server
+    host:
+      freeradius:
+        actions:
+          - packet_loss:
+              interface: eth0
+              loss: 100
+      radius-client:
+        actions:
+          - access_request:
+              target: freeradius
+              secret: testing123
+              username: testuser
+              password: testpass
+    verify:
+      timeout: 15
+      triggers:
+        - request_complete:
+            fail:
+              msg: "Request complete should not have fired"
+        - request_sent:
+            pattern:
+              reg_pattern: (\w+) request sent

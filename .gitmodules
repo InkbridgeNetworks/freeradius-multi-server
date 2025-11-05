@@ -1,0 +1,3 @@
+[submodule "freeradius-server"]
+	path = freeradius-server
+	url = git@github.com:FreeRADIUS/freeradius-server.git

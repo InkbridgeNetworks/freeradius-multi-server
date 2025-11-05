@@ -1,0 +1,4 @@
+config.log
+multi_server_test.log
+.venv/
+__pycache__/

@@ -1,0 +1,65 @@
+timeout: 40
+state_order: sequence
+states:
+  state_1:
+    description: Basic access-request test
+    host:
+      radius-client:
+        actions:
+        - code:
+            block: |
+              from python_on_whales import docker
+
+              logger.info("Executing custom access_request action via code block")
+
+              command = f"echo testpass | radtest testuser testpass freeradius 0 testing123 || true"
+
+              docker.execute(source, ["bash", "-c", command], detach=True)
+    verify:
+      timeout: 15
+      trigger_mode: unordered
+      triggers:
+      - request_sent:
+          all:
+            pattern:
+              reg_pattern: (\w+) request sent
+            range:
+              minimum: 4
+              maximum: 10
+      - request_complete:
+          may_pattern:
+            reg_pattern: (\w+) request complete
+      - request_state_reapable:
+          may_pattern:
+            reg_pattern: (\w+) request reapable
+      - request_state_cancel:
+          may_pass:
+            msg: "may_pass should always pass"
+      - foo:
+          may_never_fire:
+            msg: "may_foo should not have fired"
+  state_2:
+    description: Introduce 100% packet loss on the radius server
+    host:
+      freeradius:
+        actions:
+        - packet_loss:
+            interface: eth0
+            loss: 100
+      radius-client:
+        actions:
+        - access_request:
+            target: freeradius
+            secret: testing123
+            username: testuser
+            password: testpass
+    verify:
+      timeout: 15
+      trigger_mode: unordered
+      triggers:
+      - request_complete:
+          fail:
+            msg: "Request complete should not have fired"
+      - request_sent:
+          may_pattern:
+            reg_pattern: (\w+) request sent
