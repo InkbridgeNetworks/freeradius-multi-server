@@ -139,10 +139,10 @@ def write_yaml_to_file(data: dict, output_path: Path) -> None:
 def generate_config_files(
     file_path: Path,
     compose_output: Path = Path(
-        Path(__file__).parent.parent, "docker-compose.yml"
+        Path.cwd(), "docker-compose.yml"
     ),
     test_output: Path = Path(
-        Path(__file__).parent.parent, "tests", "test-config.yml"
+        Path.cwd(), "tests", "test-config.yml"
     ),
 ) -> None:
     """
@@ -193,7 +193,7 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
         type=str,
         help="Path to output the Docker Compose file.",
         default=Path(
-            Path(__file__).parent.parent, "environments", "docker-compose.yml"
+            Path.cwd(), "environments", "docker-compose.yml"
         ),
     )
     parser.add_argument(
@@ -202,13 +202,21 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
         type=str,
         help="Path to output the test configs.",
         default=Path(
-            Path(__file__).parent.parent, "tests", "test_configs.yml"
+            Path.cwd(), "tests", "test_configs.yml"
         ),
     )
     return parser.parse_args(args)
 
 
-if __name__ == "__main__":
+def interface() -> None:
+    """
+    Interface function to parse arguments and generate configuration files.
+    """
+    # If the DATA_PATH environment variable is not set, set it to the default data directory
+    if not os.getenv("DATA_PATH"):
+        default_data_path = Path(Path.cwd(), "data")
+        os.environ["DATA_PATH"] = str(default_data_path)
+
     parsed_args = parse_args()
 
     try:
@@ -223,3 +231,6 @@ if __name__ == "__main__":
 
     print("Configuration files generated successfully.")
     sys.exit(0)
+
+if __name__ == "__main__":
+    interface()

@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/**",
+    "README.md",
+]
+
+[tool.hatch.build.targets.wheel]
+# This is a minimal configuration for building a Python package with Hatchling.
+packages = ["src/"]
+
+[project]
+name = "multi-server-test"
+dynamic = ["version"]
+authors = [
+    {name = "Ethan Thompson"},
+]
+description = "A tool to run FreeRADIUS multi-server tests."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "python-on-whales",
+    "jinja2",
+    "pyyaml",
+    "termcolor",
+]
+
+[tool.hatch.version]
+source = "vcs"
+
+[project.urls]
+Homepage = "https://github.com/InkbridgeNetworks/freeradius-multi-server"
+GitHub = "https://github.com/InkbridgeNetworks/freeradius-multi-server"
+Issues = "https://github.com/InkbridgeNetworks/freeradius-multi-server/issues"
+
+[project.scripts]
+multi-server-test = "src.multi_server_test:interface"
+multi-server-test-config = "src.config_builder:interface"
+multi-server-test-setup = "src.setup_utils:main"

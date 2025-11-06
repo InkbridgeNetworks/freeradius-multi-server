@@ -5,7 +5,7 @@ It uses Docker Compose to set up the environment and runs tests against it.
 
 import asyncio
 import argparse
-
+import os
 import signal
 import sys
 from pathlib import Path
@@ -162,9 +162,7 @@ def main(compose_source: Path, configs: Path | dict, **kwargs) -> None:
         if compose_source.is_dir():
             # Run tests for each compose file in the directory
             for compose_file in compose_source.glob("*.yml"):
-                logger.info(
-                    "Running tests for compose file: %s", compose_file
-                )
+                logger.info("Running tests for compose file: %s", compose_file)
 
                 # Generate the states from the config
                 tests = build_tests(
@@ -230,7 +228,7 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
         dest="compose_source",
         metavar="compose_source",
         help="Path to the Docker Compose file.",
-        default=Path(Path(__file__).parent.parent, "docker-compose.yml"),
+        default=Path(Path.cwd(), "docker-compose.yml"),
     )
     parser.add_argument(
         "-c",
@@ -246,7 +244,7 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
         dest="test",
         type=Path,
         help="Path to the test configuration file.",
-        default=Path(Path(__file__).parent.parent, "tests"),
+        default=Path(Path.cwd(), "tests"),
     )
     parser.add_argument(
         "--filter",
@@ -261,7 +259,7 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
         dest="output",
         type=str,
         help="Path to output log file.",
-        default=Path(Path(__file__).parent.parent, "multi_server_test.log"),
+        default=Path(Path.cwd(), "multi_server_test.log"),
     )
     parser.add_argument(
         "-s",
@@ -288,7 +286,15 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
     return parser.parse_args(args)
 
 
-if __name__ == "__main__":
+def interface() -> None:
+    """
+    Interface function to parse arguments and run the main function.
+    """
+    # If the DATA_PATH environment variable is not set, set it to the default data directory
+    if not os.getenv("DATA_PATH"):
+        default_data_path = Path(Path.cwd(), "data")
+        os.environ["DATA_PATH"] = str(default_data_path)
+
     parsed_args = parse_args()
 
     if parsed_args.debug:
@@ -335,21 +341,17 @@ if __name__ == "__main__":
         if compose_configs:
             write_yaml_to_file(
                 compose_configs,
-                Path(Path(__file__).parent.parent, "docker-compose.yml"),
+                Path(Path.cwd(), "docker-compose.yml"),
             )
         if test_configs:
             main(
-                compose_source=Path(
-                    Path(__file__).parent.parent, "docker-compose.yml"
-                ),
+                compose_source=Path(Path.cwd(), "docker-compose.yml"),
                 configs=test_configs,
                 seed=parsed_args.seed,
             )
         else:
             main(
-                compose_source=Path(
-                    Path(__file__).parent.parent, "docker-compose.yml"
-                ),
+                compose_source=Path(Path.cwd(), "docker-compose.yml"),
                 configs=parsed_args.test,
                 seed=parsed_args.seed,
             )
@@ -360,3 +362,7 @@ if __name__ == "__main__":
             configs=parsed_args.test,
             seed=parsed_args.seed,
         )
+
+
+if __name__ == "__main__":
+    interface()
