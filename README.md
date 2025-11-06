@@ -2,7 +2,7 @@
 To use this tool, first clone the repo and run `make configure` to setup the environment and install the dependencies.
 
 ## Docker Image
-To use this tool, you first need to generate a docker image on your host by first stepping into the FreeRADIUS sub-module with `cd freeradius-server` and running `docker build -t fr-build-ubuntu22 -f scripts/docker/build/ubuntu22/Dockerfile .`.
+To use this tool, you first need to generate a docker image on your host by first stepping into your FreeRADIUS repo with and running `docker build -t fr-build-ubuntu22 -f scripts/docker/build/ubuntu22/Dockerfile .`. Once complete, change directories back to the repo for this tool.
 
 Next, generate the compose and config files using `python3 -m src.config_builder example.yml.j2`.
 
