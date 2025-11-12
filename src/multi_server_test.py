@@ -247,6 +247,16 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
         default=Path(Path.cwd(), "tests"),
     )
     parser.add_argument(
+        "-d",
+        "--data",
+        dest="data_path",
+        type=Path,
+        help="Path to the data directory.",
+        default=Path(
+            os.getenv("DATA_PATH", str(Path(Path.cwd(), "data")))
+        ),  # os.getenv wants a string, we want a Path at the end
+    )
+    parser.add_argument(
         "--filter",
         dest="filter",
         type=str,
@@ -290,14 +300,6 @@ def interface() -> None:
     """
     Interface function to parse arguments and run the main function.
     """
-    # If the DATA_PATH environment variable is not set, set it to the default data directory
-    if not os.getenv("DATA_PATH"):
-        logger.info(
-            "DATA_PATH environment variable not set. Using default data path."
-        )
-        default_data_path = Path(Path.cwd(), "data")
-        os.environ["DATA_PATH"] = str(default_data_path)
-
     parsed_args = parse_args()
 
     if parsed_args.debug:
@@ -305,6 +307,10 @@ def interface() -> None:
 
         DEBUG_LEVEL = parsed_args.debug
         logger.info("Debug mode enabled. Debug level: %d", DEBUG_LEVEL)
+
+    # Set the DATA_PATH environment variable based on the parsed argument
+    logger.debug("Setting DATA_PATH to %s", parsed_args.data_path)
+    os.environ["DATA_PATH"] = str(parsed_args.data_path)
 
     logging_helper.setup_file_logging(parsed_args.output)
     file_logger = logging_helper.get_file_logger()
