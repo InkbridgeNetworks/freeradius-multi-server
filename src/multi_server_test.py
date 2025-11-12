@@ -309,6 +309,13 @@ def interface() -> None:
         logger.info("Debug mode enabled. Debug level: %d", DEBUG_LEVEL)
 
     # Set the DATA_PATH environment variable based on the parsed argument
+    if not parsed_args.data_path.exists():
+        logger.error(
+            "Data path %s does not exist.",
+            parsed_args.data_path,
+        )
+        logger.info("Exiting.")
+        sys.exit(1)
     logger.debug("Setting DATA_PATH to %s", parsed_args.data_path)
     os.environ["DATA_PATH"] = str(parsed_args.data_path)
 
