@@ -59,7 +59,13 @@ states:
 ```
 
 # HOW-TO
-## Setup
+## Setup (PyPI)
+This package can be installed from our PyPI repo at https://pypi.inkbridge.io/freeradius-multi-server. Once installed, the following commands are available:
+- `multi-server-test` - Runs the main tool for testing
+- `multi-server-test-config` - The config builder that can render a jinja2 config to an <b>envionment</b> and <b>test</b> file.
+- `multi-server-test-setup` - Setup tool that will create the `environments/`, `tests/`, and `data/` directories.
+
+## Setup (Source)
 To use this tool, first clone the repo and run `make configure` to setup the environment and install the dependencies.
 
 Activate the python virtual environment using `source .venv/bin/activate`.
@@ -72,9 +78,16 @@ You now need to generate a docker image on your host by first stepping into your
 Next, generate the compose and config files using `python3 -m src.config_builder example.yml.j2`.
 
 ## Example
-To use the tool, run `make test-framework -- <ARGS>`. For example:
+### PyPI
+To use the tool, run `multi-server-test <ARGS>`. For example:
 ```
-make test framework -- -v -t tests/foo.yml
+multi-server-test -v -t tests/foo.yml
+```
+
+### Source
+Run `make test-framework -- <ARGS>`. For example:
+```
+make test-framework -- -v -t tests/foo.yml
 ```
 
 # Command Arguments
@@ -85,6 +98,8 @@ make test framework -- -v -t tests/foo.yml
 `-c`, `--config` - Path to a configuration file. This file can contain the test configs, compose configs, or both, and can be in either yaml or jinja2 format.
 
 `-t`, `--test` - Path to the test configuration file. Defaults to the directory named `tests/`.
+
+`-d`, `--data` - Path to the data directory.
 
 `--filter` - Filter test logs by name. Format is a comma separated list of test names.
 
