@@ -1,0 +1,14 @@
+name: Package
+on:
+  push:
+    tags: [ 'v*.*.*' ]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  package:
+    uses: InkbridgeNetworks/python-packaging/.github/workflows/python-package.yml@master
+    with:
+      package_name: freeradius-multi-server
+    secrets: inherit
