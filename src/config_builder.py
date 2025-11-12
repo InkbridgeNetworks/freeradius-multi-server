@@ -214,6 +214,7 @@ def interface() -> None:
     """
     # If the DATA_PATH environment variable is not set, set it to the default data directory
     if not os.getenv("DATA_PATH"):
+        print("DATA_PATH environment variable not set. Using default data path.")
         default_data_path = Path(Path.cwd(), "data")
         os.environ["DATA_PATH"] = str(default_data_path)
 
