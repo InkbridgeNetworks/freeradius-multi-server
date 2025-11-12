@@ -138,12 +138,8 @@ def write_yaml_to_file(data: dict, output_path: Path) -> None:
 
 def generate_config_files(
     file_path: Path,
-    compose_output: Path = Path(
-        Path.cwd(), "docker-compose.yml"
-    ),
-    test_output: Path = Path(
-        Path.cwd(), "tests", "test-config.yml"
-    ),
+    compose_output: Path = Path(Path.cwd(), "docker-compose.yml"),
+    test_output: Path = Path(Path.cwd(), "tests", "test-config.yml"),
 ) -> None:
     """
     Generates configuration files for multi-server setup.
@@ -192,18 +188,14 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
         dest="compose_output",
         type=str,
         help="Path to output the Docker Compose file.",
-        default=Path(
-            Path.cwd(), "environments", "docker-compose.yml"
-        ),
+        default=Path(Path.cwd(), "environments", "docker-compose.yml"),
     )
     parser.add_argument(
         "--test_output",
         dest="test_output",
         type=str,
         help="Path to output the test configs.",
-        default=Path(
-            Path.cwd(), "tests", "test_configs.yml"
-        ),
+        default=Path(Path.cwd(), "tests", "test_configs.yml"),
     )
     return parser.parse_args(args)
 
@@ -214,7 +206,9 @@ def interface() -> None:
     """
     # If the DATA_PATH environment variable is not set, set it to the default data directory
     if not os.getenv("DATA_PATH"):
-        print("DATA_PATH environment variable not set. Using default data path.")
+        print(
+            "DATA_PATH environment variable not set. Using default data path."
+        )
         default_data_path = Path(Path.cwd(), "data")
         os.environ["DATA_PATH"] = str(default_data_path)
 
@@ -232,6 +226,7 @@ def interface() -> None:
 
     print("Configuration files generated successfully.")
     sys.exit(0)
+
 
 if __name__ == "__main__":
     interface()
