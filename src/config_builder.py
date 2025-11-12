@@ -197,6 +197,15 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
         help="Path to output the test configs.",
         default=Path(Path.cwd(), "tests", "test_configs.yml"),
     )
+    parser.add_argument(
+        "-d" "--data_path",
+        dest="data_path",
+        type=Path,
+        help="Path to the data directory.",
+        default=Path(
+            os.getenv("DATA_PATH", str(Path(Path.cwd(), "data")))
+        ),  # os.getenv wants a string, we want a Path at the end
+    )
     return parser.parse_args(args)
 
 
@@ -204,15 +213,16 @@ def interface() -> None:
     """
     Interface function to parse arguments and generate configuration files.
     """
-    # If the DATA_PATH environment variable is not set, set it to the default data directory
-    if not os.getenv("DATA_PATH"):
-        print(
-            "DATA_PATH environment variable not set. Using default data path."
-        )
-        default_data_path = Path(Path.cwd(), "data")
-        os.environ["DATA_PATH"] = str(default_data_path)
-
     parsed_args = parse_args()
+
+    # Set the DATA_PATH environment variable based on the parsed argument
+    if not parsed_args.data_path.exists():
+        print(
+            f"Data path {parsed_args.data_path} does not exist. Creating it now."
+        )
+        parsed_args.data_path.mkdir(parents=True, exist_ok=True)
+    print(f"Setting DATA_PATH to {parsed_args.data_path}")
+    os.environ["DATA_PATH"] = str(parsed_args.data_path)
 
     try:
         generate_config_files(
