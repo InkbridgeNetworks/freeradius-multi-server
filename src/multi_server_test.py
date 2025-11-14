@@ -85,7 +85,7 @@ def build_tests(
 
     if isinstance(config, Path) and config.is_dir():
         for test_file in config.glob("*.yml"):
-            test_name = test_file.stem
+            test_name = test_file.stem + '-' + compose_file.stem
             test_logger = create_test_logger(test_name, compose_file.stem)
             try:
                 timeout, states = generate_states(
@@ -240,7 +240,7 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
         dest="compose_source",
         metavar="compose_source",
         help="Path to the Docker Compose file.",
-        default=Path(Path.cwd(), "docker-compose.yml"),
+        default=Path(Path.cwd(), "environments"),
     )
     parser.add_argument(
         "-c",
