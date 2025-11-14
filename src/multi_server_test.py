@@ -43,9 +43,17 @@ async def cleanup_and_shutdown() -> None:
     logger.debug("Cleanup completed.")
 
     logger.debug("Stopping the event loop...")
+
     # Stop the event loop if it's running
-    if asyncio.get_event_loop().is_running():
-        asyncio.get_event_loop().stop()
+    try:
+        loop = asyncio.get_running_loop()
+
+        if loop:
+            loop.stop()
+
+    except RuntimeError:
+        # No running event loop
+        pass
     logger.debug("Event loop stopped.")
 
 
@@ -150,7 +158,11 @@ def main(compose_source: Path, configs: Path | dict, **kwargs) -> None:
         **kwargs: Additional keyword arguments.
     """
     # Run a test in an asynchronous event loop
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
     try:
         # Add a signal handler to gracefully handle shutdown

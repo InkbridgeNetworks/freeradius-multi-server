@@ -38,7 +38,11 @@ class State:
         self.timeout = timeout
         self._timeout_handle = None
 
-        loop = loop or asyncio.get_event_loop()
+        try:
+            loop = loop or asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
         self.state_completed = loop.create_future()
 
         self.validator = Validator(
@@ -64,7 +68,11 @@ class State:
         """
         Enter the state and execute all actions.
         """
-        loop = asyncio.get_event_loop()
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
 
         # Set up the timeout to mark the state as completed after the specified duration
         def on_timeout() -> None:
