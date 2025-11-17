@@ -19,6 +19,7 @@ from src.custom_test import (
 
 DEBUG_LEVEL = 0
 VERBOSE_LEVEL = 0
+SOCKET_DIR = Path("/var/run/multi-test")
 
 logging_helper.setup_logging()
 logger = logging_helper.get_logger()
@@ -97,6 +98,7 @@ def build_tests(
                         states=states,
                         compose_file=compose_file,
                         timeout=timeout,
+                        socket_dir=SOCKET_DIR,
                         detail_level=VERBOSE_LEVEL,
                         loop=loop,
                         logger=test_logger,
@@ -119,6 +121,7 @@ def build_tests(
                     states=states,
                     compose_file=compose_file,
                     timeout=timeout,
+                    socket_dir=SOCKET_DIR,
                     detail_level=VERBOSE_LEVEL,
                     loop=loop,
                     logger=test_logger,
@@ -292,6 +295,13 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
         default=None,
     )
     parser.add_argument(
+        "--socket-dir",
+        dest="socket_dir",
+        type=Path,
+        help="Path to the directory to store socket files.",
+        default=Path("/var/run/multi-test"),
+    )
+    parser.add_argument(
         "--debug",
         "-x",
         dest="debug",
@@ -350,6 +360,20 @@ def interface() -> None:
         logging_helper.add_message_filter(filter_names, logger_obj=file_logger)
 
         logger.info("Filtering logs by name: %s", parsed_args.filter)
+
+    if parsed_args.socket_dir:
+        if not parsed_args.socket_dir.exists():
+            logger.debug(
+                "Socket directory %s does not exist, creating it.",
+                parsed_args.socket_dir,
+            )
+            parsed_args.socket_dir.mkdir(parents=True, exist_ok=True)
+
+        global SOCKET_DIR
+        SOCKET_DIR = parsed_args.socket_dir
+
+    logger.debug("Using socket directory: %s", SOCKET_DIR)
+    os.environ["SOCKET_DIR"] = str(SOCKET_DIR)
 
     if parsed_args.config_file:
         try:

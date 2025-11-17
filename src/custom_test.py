@@ -46,6 +46,7 @@ class Test:
         states: list[State],
         compose_file: Path,
         timeout: float,
+        socket_dir: Path,
         detail_level: int,
         loop: asyncio.AbstractEventLoop,
         logger: logging.Logger = None,
@@ -62,7 +63,7 @@ class Test:
         self.client = DockerClient(
             compose_files=[self.compose_file], compose_project_name=self.name
         )
-        self.output_socket = Path("/var/run/multi-test", self.name + ".sock")
+        self.output_socket = Path(socket_dir, self.name + ".sock")
         self.logging_task: asyncio.Task = None
         self.validation_task: asyncio.Task = None
 

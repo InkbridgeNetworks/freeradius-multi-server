@@ -206,6 +206,13 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
             os.getenv("DATA_PATH", str(Path(Path.cwd(), "data")))
         ),  # os.getenv wants a string, we want a Path at the end
     )
+    parser.add_argument(
+        "--socket-dir",
+        dest="socket_dir",
+        type=Path,
+        help="Path to the directory to store socket files.",
+        default=Path("/var/run/multi-test"),
+    )
     return parser.parse_args(args)
 
 
@@ -223,6 +230,20 @@ def interface() -> None:
         parsed_args.data_path.mkdir(parents=True, exist_ok=True)
     print(f"Setting DATA_PATH to {parsed_args.data_path}")
     os.environ["DATA_PATH"] = str(parsed_args.data_path)
+
+    if parsed_args.socket_dir:
+        if not parsed_args.socket_dir.exists():
+            print(
+                "Socket directory %s does not exist, creating it."
+                % parsed_args.socket_dir
+            )
+            parsed_args.socket_dir.mkdir(parents=True, exist_ok=True)
+
+        global SOCKET_DIR
+        SOCKET_DIR = parsed_args.socket_dir
+
+    print("Using socket directory: %s" % SOCKET_DIR)
+    os.environ["SOCKET_DIR"] = str(SOCKET_DIR)
 
     try:
         generate_config_files(
