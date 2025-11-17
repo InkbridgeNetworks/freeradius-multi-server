@@ -63,6 +63,11 @@ class Listener:
         if self.socket_path.exists():
             # The path may be a directory if compose tried to mount it as a volume before
             # we created it
+            self.logger.debug(
+                "Socket path %s exists as a %s, removing it.",
+                self.socket_path,
+                "directory" if self.socket_path.is_dir() else "file",
+            )
             if self.socket_path.is_dir():
                 self.socket_path.rmdir()
             else:
