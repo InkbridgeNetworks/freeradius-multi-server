@@ -345,6 +345,7 @@ def interface() -> None:
     file_logger = logging_helper.get_file_logger()
 
     if parsed_args.verbose:
+        global VERBOSE_LEVEL
         VERBOSE_LEVEL = parsed_args.verbose
         logger.info("Verbose mode enabled. Verbose level: %d", VERBOSE_LEVEL)
 
