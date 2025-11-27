@@ -1,7 +1,7 @@
 {% set image_name = "ubuntu:22.04" %}
 {% set network_id = "default_network" %}
 {% set remote_unix_socket_path = "/var/run/test.sock" %}
-{% set local_unix_socket_path = "${SOCKET_DIR}/${COMPOSE_PROJECT_NAME}.sock" %}
+{% set local_unix_socket_path = "${LISTENER_DIR}/${COMPOSE_PROJECT_NAME}.sock" %}
 {% set local_raddb_path = os.getenv("DATA_PATH", "") + "/freeradius/default" %}
 {% set local_mariadb_path = "${DATA_PATH}/mariadb/default" %}
 

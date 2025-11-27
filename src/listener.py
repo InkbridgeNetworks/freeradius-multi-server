@@ -1,31 +1,91 @@
 """A listener to handle incoming messages from containers."""
 
+from abc import ABC, abstractmethod
 import asyncio
+from enum import Enum
 import logging
 from pathlib import Path
 
 from src import logging_helper
 
+class ListenerType(Enum):
+    """
+    Enum for different listener types.
+    """
+    SOCKET = 0
+    # Add other listener types as needed
 
-class Listener:
+class Listener(ABC):
     """
-    A class to represent a listener that handles incoming messages from containers.
+    An abstract base class for listeners that handle incoming messages.
     """
+
+    listener_dest: Path
+    msg_queue: asyncio.Queue
+    ready_future: asyncio.Future
+    logger: logging.Logger
 
     def __init__(
         self,
-        socket_path: Path,
+        listener_dest: Path,
         msg_queue: asyncio.Queue,
         ready_future: asyncio.Future,
         logger: logging.Logger = logging_helper.get_logger(),
     ) -> None:
-        self.messages = []
-        self.socket_path = socket_path
+        self.listener_dest = listener_dest
         self.msg_queue = msg_queue
         self.ready_future = ready_future
         self.logger = logger
+        super().__init__()
 
-    async def handle_connection(
+    @abstractmethod
+    async def start(self) -> None:
+        """
+        Starts the listener.
+        """
+        raise NotImplementedError(
+            "start method must be implemented by subclasses."
+        )
+
+    # async def stop(self) -> bool:
+    def stop(self) -> bool:
+        """
+        Stops and cleans up the listener.
+
+        Returns:
+            bool: True if the listener was successfully stopped and cleaned up, False otherwise.
+        """
+        if self.listener_dest.exists():
+            try:
+                self.logger.debug(
+                    "Removing listener socket at %s", self.listener_dest
+                )
+                self.listener_dest.unlink()
+                self.logger.info(
+                    "Listener: Removed logging destination %s",
+                    self.listener_dest,
+                )
+                return True
+            except OSError as e:
+                self.logger.error(
+                    "Listener: Failed to remove logging destination %s: %s",
+                    self.listener_dest,
+                    e,
+                )
+                return False
+        self.logger.info(
+            "Listener: Logging destination %s does not exist, nothing to remove",
+            self.listener_dest,
+        )
+        return True
+
+
+class SocketListener(Listener):
+    """
+    A class to represent a listener that handles incoming messages from containers.
+    """
+
+    async def __handle_connection(
         self,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
@@ -58,29 +118,29 @@ class Listener:
         """
         Starts the listener server.
         """
-        self.logger.debug("Starting listener on %s", self.socket_path)
+        self.logger.debug("Starting listener on %s", self.listener_dest)
 
-        if self.socket_path.exists():
+        if self.listener_dest.exists():
             # The path may be a directory if compose tried to mount it as a volume before
             # we created it
             self.logger.debug(
                 "Socket path %s exists as a %s, removing it.",
-                self.socket_path,
-                "directory" if self.socket_path.is_dir() else "file",
+                self.listener_dest,
+                "directory" if self.listener_dest.is_dir() else "file",
             )
-            if self.socket_path.is_dir():
-                self.socket_path.rmdir()
+            if self.listener_dest.is_dir():
+                self.listener_dest.rmdir()
             else:
-                self.socket_path.unlink()
+                self.listener_dest.unlink()
 
         try:
             server = await asyncio.start_unix_server(
-                self.handle_connection,
-                path=self.socket_path,
+                self.__handle_connection,
+                path=self.listener_dest,
             )
 
-            # Make sure the socket is world writable
-            self.socket_path.chmod(0o777)
+            # Make sure the socket is world writable so containers can connect
+            self.listener_dest.chmod(0o777)
         except PermissionError as e:
             self.logger.error("Permission error starting listener: %s", e)
             return

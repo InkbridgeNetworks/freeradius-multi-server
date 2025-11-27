@@ -27,7 +27,7 @@ services:
     - ${DATA_PATH}/freeradius/default/mods-config/files/authorize:/etc/raddb/mods-config/files/authorize
     - ${DATA_PATH}/freeradius/default/sites-available/default:/etc/raddb/sites-available/default
     - ${DATA_PATH}/freeradius/env-setup.sh:/tmp/env-setup.sh
-    - ${SOCKET_DIR}/${COMPOSE_PROJECT_NAME}.sock:/var/run/test.sock
+    - ${LISTENER_DIR}/${COMPOSE_PROJECT_NAME}.sock:/var/run/test.sock
     command: radiusd -X
     restart: unless-stopped
     entrypoint:
@@ -53,7 +53,7 @@ services:
     - ${DATA_PATH}/freeradius/default/mods-config/files/authorize:/etc/raddb/mods-config/files/authorize
     - ${DATA_PATH}/freeradius/default/sites-available/default:/etc/raddb/sites-available/default
     - ${DATA_PATH}/freeradius/env-setup.sh:/tmp/env-setup.sh
-    - ${SOCKET_DIR}/${COMPOSE_PROJECT_NAME}.sock:/var/run/test.sock
+    - ${LISTENER_DIR}/${COMPOSE_PROJECT_NAME}.sock:/var/run/test.sock
     command: radiusd -X
     restart: unless-stopped
     entrypoint:
@@ -78,7 +78,7 @@ services:
     - ${DATA_PATH}/freeradius/proxy-multi-hs/mods-available/radius:/etc/raddb/mods-available/radius
     - ${DATA_PATH}/freeradius/proxy-multi-hs/mods-available/linelog:/etc/raddb/mods-available/linelog
     - ${DATA_PATH}/freeradius/env-setup.sh:/tmp/env-setup.sh
-    - ${SOCKET_DIR}/${COMPOSE_PROJECT_NAME}.sock:/var/run/test.sock
+    - ${LISTENER_DIR}/${COMPOSE_PROJECT_NAME}.sock:/var/run/test.sock
     command: radiusd -X
     restart: unless-stopped
     entrypoint:

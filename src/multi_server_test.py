@@ -16,10 +16,12 @@ from src.custom_test import (
     Test,
     create_test_logger,
 )
+from src.listener import ListenerType
 
 DEBUG_LEVEL = 0
 VERBOSE_LEVEL = 0
-SOCKET_DIR = Path("/var/run/multi-test")
+
+listener_dir: Path = None
 
 logging_helper.setup_logging()
 logger = logging_helper.get_logger()
@@ -63,6 +65,7 @@ def build_tests(
     config: Path | dict,
     compose_file: Path,
     seed: int | None = None,
+    listener_type: ListenerType = ListenerType.SOCKET,
 ) -> list[Test]:
     """
     Build a list of Test objects from the configuration.
@@ -86,8 +89,19 @@ def build_tests(
 
     if isinstance(config, Path) and config.is_dir():
         for test_file in config.glob("*.yml"):
-            test_name = test_file.stem + '-' + compose_file.stem
+            test_name = test_file.stem + "-" + compose_file.stem
             test_logger = create_test_logger(test_name, compose_file.stem)
+
+            match listener_type:
+                case ListenerType.SOCKET:
+                    test_listener_path = Path(
+                        listener_dir, test_name + ".sock"
+                    )
+                case _:
+                    raise ValueError(
+                        f"Unsupported listener type: {listener_type}"
+                    )
+
             try:
                 timeout, states = generate_states(
                     loop, test_file, test_name, test_logger, seed=seed
@@ -98,7 +112,7 @@ def build_tests(
                         states=states,
                         compose_file=compose_file,
                         timeout=timeout,
-                        socket_dir=SOCKET_DIR,
+                        listener_dest=test_listener_path,
                         detail_level=VERBOSE_LEVEL,
                         loop=loop,
                         logger=test_logger,
@@ -110,8 +124,19 @@ def build_tests(
                 logger.debug("Skipping invalid test configuration.")
     else:
         try:
-            test_name = "custom_test"
+            test_name = "custom_test" + "-" + compose_file.stem
             test_logger = create_test_logger(test_name, compose_file.stem)
+
+            match listener_type:
+                case ListenerType.SOCKET:
+                    test_listener_path = Path(
+                        listener_dir, test_name + ".sock"
+                    )
+                case _:
+                    raise ValueError(
+                        f"Unsupported listener type: {listener_type}"
+                    )
+
             timeout, states = generate_states(
                 loop, config, test_name, test_logger, seed=seed
             )
@@ -121,7 +146,7 @@ def build_tests(
                     states=states,
                     compose_file=compose_file,
                     timeout=timeout,
-                    socket_dir=SOCKET_DIR,
+                    listener_dest=test_listener_path,
                     detail_level=VERBOSE_LEVEL,
                     loop=loop,
                     logger=test_logger,
@@ -144,13 +169,19 @@ async def run_tests(tests: list[Test]) -> None:
         async with asyncio.TaskGroup() as tg:
             for test in tests:
                 tg.create_task(test.run(VERBOSE_LEVEL >= 3))
-    except Exception as e:
-        logger.error("An error occurred while running tests: %s", e)
+    except* ValueError as eg:
+        for e in eg.exceptions:
+            logger.error("An error occurred while running tests: %s", e)
 
     logger.info("All tests completed.")
 
 
-def main(compose_source: Path, configs: Path | dict, **kwargs) -> None:
+def main(
+    compose_source: Path,
+    configs: Path | dict,
+    listener_type: ListenerType = ListenerType.SOCKET,
+    **kwargs,
+) -> None:
     """
     Main function to run the multi-server tests.
 
@@ -181,7 +212,11 @@ def main(compose_source: Path, configs: Path | dict, **kwargs) -> None:
 
                 # Generate the states from the config
                 tests = build_tests(
-                    loop, configs, compose_file, seed=kwargs.get("seed")
+                    loop,
+                    configs,
+                    compose_file,
+                    seed=kwargs.get("seed"),
+                    listener_type=listener_type,
                 )
 
                 # Create the test task group
@@ -194,7 +229,11 @@ def main(compose_source: Path, configs: Path | dict, **kwargs) -> None:
         elif compose_source.is_file():
             # Generate the states from the config
             tests = build_tests(
-                loop, configs, compose_source, seed=kwargs.get("seed")
+                loop,
+                configs,
+                compose_source,
+                seed=kwargs.get("seed"),
+                listener_type=listener_type,
             )
 
             # Create the test task group
@@ -370,11 +409,12 @@ def interface() -> None:
             )
             parsed_args.socket_dir.mkdir(parents=True, exist_ok=True)
 
-        global SOCKET_DIR
-        SOCKET_DIR = parsed_args.socket_dir
+        global listener_dir
+        listener_dir = parsed_args.socket_dir
+        listener_type = ListenerType.SOCKET
 
-    logger.debug("Using socket directory: %s", SOCKET_DIR)
-    os.environ["SOCKET_DIR"] = str(SOCKET_DIR)
+    logger.debug("Using listener directory: %s", listener_dir)
+    os.environ["LISTENER_DIR"] = str(listener_dir)
 
     if parsed_args.config_file:
         try:
@@ -401,12 +441,14 @@ def interface() -> None:
                 compose_source=Path(Path.cwd(), "docker-compose.yml"),
                 configs=test_configs,
                 seed=parsed_args.seed,
+                listener_type=listener_type,
             )
         else:
             main(
                 compose_source=Path(Path.cwd(), "docker-compose.yml"),
                 configs=parsed_args.test,
                 seed=parsed_args.seed,
+                listener_type=listener_type,
             )
 
     else:
@@ -414,6 +456,7 @@ def interface() -> None:
             compose_source=parsed_args.compose_source,
             configs=parsed_args.test,
             seed=parsed_args.seed,
+            listener_type=listener_type,
         )
 
 

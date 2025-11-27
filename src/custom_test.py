@@ -10,7 +10,7 @@ from python_on_whales import DockerClient
 
 from src import logging_helper
 from src.states.state import State
-from src.listener import Listener
+from src.listener import Listener, SocketListener
 
 
 def create_test_logger(name: str, env_name: str) -> logging.Logger:
@@ -40,13 +40,15 @@ class Test:
     A class to represent a multi-server test.
     """
 
+    listener: Listener
+
     def __init__(
         self,
         name: str,
         states: list[State],
         compose_file: Path,
         timeout: float,
-        socket_dir: Path,
+        listener_dest: Path,
         detail_level: int,
         loop: asyncio.AbstractEventLoop,
         logger: logging.Logger = None,
@@ -63,7 +65,11 @@ class Test:
         self.client = DockerClient(
             compose_files=[self.compose_file], compose_project_name=self.name
         )
-        self.output_socket = Path(socket_dir, self.name + ".sock")
+        self.__ready_future: asyncio.Future = self.loop.create_future()
+        if listener_dest.suffix == ".sock":
+            self.listener = SocketListener(
+                listener_dest, self.queue, self.__ready_future, self.logger
+            )
         self.logging_task: asyncio.Task = None
         self.validation_task: asyncio.Task = None
 
@@ -76,16 +82,10 @@ class Test:
         """
         self.logger.info("Setting up test: %s", self.name)
 
-        ready_future = self.loop.create_future()
-
-        self.listener_task = self.loop.create_task(
-            Listener(
-                self.output_socket, self.queue, ready_future, self.logger
-            ).start()
-        )
+        self.listener_task = self.loop.create_task(self.listener.start())
 
         # Wait for the listener to be ready
-        await ready_future
+        await self.__ready_future
 
         self.logger.info(
             "Listener is ready. Beginning test setup for %s.", self.name
@@ -184,9 +184,9 @@ class Test:
             except asyncio.CancelledError:
                 pass
 
-        # Remove the socket file
-        if self.output_socket.exists():
-            self.output_socket.unlink()
+        # Shut down the listener
+        # await self.listender.stop()
+        self.listener.stop()
 
         self.logger.info("Cleanup complete for test: %s", self.name)
 
@@ -272,4 +272,6 @@ class Test:
 
         file_logger = logging_helper.get_file_logger()
         for result in test_results:
-            file_logger.info("%s %s", f"Test.{self.name}.{self.compose_file.stem}", result)
+            file_logger.info(
+                "%s %s", f"Test.{self.name}.{self.compose_file.stem}", result
+            )

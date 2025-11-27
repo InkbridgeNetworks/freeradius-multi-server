@@ -239,12 +239,11 @@ def interface() -> None:
             )
             parsed_args.socket_dir.mkdir(parents=True, exist_ok=True)
 
-        global SOCKET_DIR
-        SOCKET_DIR = parsed_args.socket_dir
+        global listener_dir
+        listener_dir = parsed_args.socket_dir
 
-    print("Using socket directory: %s" % SOCKET_DIR)
-    os.environ["SOCKET_DIR"] = str(SOCKET_DIR)
-
+    print("Using listener directory: %s" % listener_dir)
+    os.environ["LISTENER_DIR"] = str(listener_dir)
     try:
         generate_config_files(
             Path(parsed_args.config_file),

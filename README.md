@@ -14,7 +14,7 @@ The files stored in the `environments/` directory just docker compose configs th
 The container(s) running FreeRADIUS will need a `linelog` config that will write to a unix socket, and a unix socket mounted to the container as follows:
 ```
 volumes:
-- ${SOCKET_DIR}/${COMPOSE_PROJECT_NAME}.sock:/path/inside/container.sock
+- ${LISTENER_DIR}/${COMPOSE_PROJECT_NAME}.sock:/path/inside/container.sock
 ...
 ```
 
