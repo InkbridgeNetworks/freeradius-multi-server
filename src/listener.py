@@ -1,19 +1,25 @@
 """A listener to handle incoming messages from containers."""
-
 from abc import ABC, abstractmethod
 import asyncio
 from enum import Enum
 import logging
 from pathlib import Path
 
+import aiofiles
+from watchfiles import awatch, Change
+
 from src import logging_helper
+
 
 class ListenerType(Enum):
     """
     Enum for different listener types.
     """
+
     SOCKET = 0
+    FILE = 1
     # Add other listener types as needed
+
 
 class Listener(ABC):
     """
@@ -48,7 +54,7 @@ class Listener(ABC):
         )
 
     # async def stop(self) -> bool:
-    def stop(self) -> bool:
+    async def stop(self) -> bool:
         """
         Stops and cleans up the listener.
 
@@ -154,3 +160,147 @@ class SocketListener(Listener):
         async with server:
             self.logger.debug("Listener running.")
             await server.serve_forever()
+
+
+class FileListener(Listener):
+    """
+    A class to represent a listener that writes incoming messages to a file.
+    """
+
+    listener_source: aiofiles.threadpool.text.AsyncTextIOWrapper = None
+
+    def __process_message(self, message: str) -> None:
+        """
+        Processes a single message and puts it into the message queue.
+
+        Args:
+            message (str): The incoming message.
+        """
+        self.logger.debug("Processing message: %s", message)
+
+        if " " not in message:
+            self.logger.warning(
+                "Invalid message format: %s. Expected 'trigger_name trigger_value'.",
+                message,
+            )
+            return
+
+        trigger_name, trigger_value = message.split(" ", 1)
+
+        self.msg_queue.put_nowait((trigger_name, trigger_value))
+
+    async def start(self) -> None:
+        """
+        Starts the file listener.
+        """
+        self.logger.debug("Starting file listener on %s", self.listener_dest)
+
+        # Remove existing file if it exists
+        if self.listener_dest.exists():
+            self.logger.debug(
+                "Listener destination %s exists, removing it.",
+                self.listener_dest,
+            )
+
+            if self.listener_dest.is_dir():
+                self.listener_dest.rmdir()
+            else:
+                self.listener_dest.unlink()
+
+        # Notify that the listener is ready
+        if not self.ready_future.done():
+            self.ready_future.set_result(True)
+
+        # Wait for the file to be created and start reading from it
+        try:
+            self.logger.debug(
+                "Starting to watch for changes in %s",
+                self.listener_dest.parent,
+            )
+            async for changes in awatch(self.listener_dest.parent):
+                for change in changes:
+                    change_type, change_path = change
+
+                    # Only process modifications to the log file
+                    if Path(change_path) != self.listener_dest:
+                        continue
+
+                    match change_type:
+                        case Change.added:
+                            self.logger.debug(
+                                "Detected addition of file %s",
+                                self.listener_dest,
+                            )
+                            self.listener_source = await aiofiles.open(
+                                self.listener_dest, mode="r", encoding="utf-8"
+                            )
+                            self.logger.debug(
+                                "Opened listener source for file %s",
+                                self.listener_dest,
+                            )
+                        case Change.deleted:
+                            self.logger.debug(
+                                "Detected deletion of file %s",
+                                self.listener_dest,
+                            )
+                            if self.listener_source:
+                                await self.listener_source.close()
+                                self.listener_source = None
+                                self.logger.debug(
+                                    "Closed listener source for file %s",
+                                    self.listener_dest,
+                                )
+                        case Change.modified:
+                            self.logger.debug(
+                                "Detected modification to file %s",
+                                self.listener_dest,
+                            )
+                            if self.listener_source:
+                                async for line in self.listener_source:
+                                    message = line.strip()
+                                    self.logger.debug(
+                                        "Received message: %s", message
+                                    )
+                                    self.__process_message(message)
+
+                                self.logger.debug(
+                                    "Processed all new lines in file %s",
+                                    self.listener_dest,
+                                )
+                        case _:
+                            pass
+        except FileNotFoundError:
+            self.logger.warning(
+                "Listener destination %s not found or removed.",
+                self.listener_dest,
+            )
+            return
+
+        self.logger.debug("File listener on %s stopped.", self.listener_dest)
+
+    async def stop(self) -> bool:
+        """
+        Stops and cleans up the file listener.
+
+        Returns:
+            bool: True if the listener was successfully stopped and cleaned up, False otherwise.
+        """
+
+        loop = asyncio.get_running_loop()
+        if loop.is_running() and self.listener_source:
+            self.logger.debug(
+                "Closing listener source for file %s", self.listener_dest
+            )
+            await self.listener_source.close()
+
+        # Backup the file before removing it
+        if self.listener_dest.exists():
+            backup_path = Path(str(self.listener_dest) + ".bak")
+            self.logger.debug(
+                "Backing up log file %s to %s",
+                self.listener_dest,
+                backup_path,
+            )
+            self.listener_dest.rename(backup_path)
+
+        return await super().stop()

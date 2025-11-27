@@ -2,3 +2,5 @@ python-on-whales
 jinja2
 pyyaml
 termcolor
+aiofiles
+watchfiles

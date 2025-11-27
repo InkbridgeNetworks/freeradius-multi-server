@@ -30,6 +30,8 @@ dependencies = [
     "jinja2",
     "pyyaml",
     "termcolor",
+    "aiofiles",
+    "watchfiles",
 ]
 
 [tool.hatch.version]

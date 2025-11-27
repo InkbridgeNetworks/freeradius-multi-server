@@ -97,6 +97,10 @@ def build_tests(
                     test_listener_path = Path(
                         listener_dir, test_name + ".sock"
                     )
+                case ListenerType.FILE:
+                    test_listener_path = Path(
+                        listener_dir, test_name + ".txt"
+                    )
                 case _:
                     raise ValueError(
                         f"Unsupported listener type: {listener_type}"
@@ -131,6 +135,10 @@ def build_tests(
                 case ListenerType.SOCKET:
                     test_listener_path = Path(
                         listener_dir, test_name + ".sock"
+                    )
+                case ListenerType.FILE:
+                    test_listener_path = Path(
+                        listener_dir, test_name + ".txt"
                     )
                 case _:
                     raise ValueError(
@@ -334,11 +342,18 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
         default=None,
     )
     parser.add_argument(
-        "--socket-dir",
-        dest="socket_dir",
+        "--listener-dir",
+        dest="listener_dir",
         type=Path,
-        help="Path to the directory to store socket files.",
+        help="Path to the directory to store listener files.",
         default=Path("/var/run/multi-test"),
+    )
+    parser.add_argument(
+        "--use-files",
+        dest="use_files",
+        action="store_true",
+        help="Use file-based listeners instead of socket-based listeners.",
+        default=False,
     )
     parser.add_argument(
         "--debug",
@@ -401,16 +416,20 @@ def interface() -> None:
 
         logger.info("Filtering logs by name: %s", parsed_args.filter)
 
-    if parsed_args.socket_dir:
-        if not parsed_args.socket_dir.exists():
+    if parsed_args.listener_dir:
+        if not parsed_args.listener_dir.exists():
             logger.debug(
-                "Socket directory %s does not exist, creating it.",
-                parsed_args.socket_dir,
+                "Listener directory %s does not exist, creating it.",
+                parsed_args.listener_dir,
             )
-            parsed_args.socket_dir.mkdir(parents=True, exist_ok=True)
+            parsed_args.listener_dir.mkdir(parents=True, exist_ok=True)
 
         global listener_dir
-        listener_dir = parsed_args.socket_dir
+        listener_dir = parsed_args.listener_dir
+
+    if parsed_args.use_files:
+        listener_type = ListenerType.FILE
+    else:
         listener_type = ListenerType.SOCKET
 
     logger.debug("Using listener directory: %s", listener_dir)

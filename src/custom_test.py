@@ -10,7 +10,7 @@ from python_on_whales import DockerClient
 
 from src import logging_helper
 from src.states.state import State
-from src.listener import Listener, SocketListener
+from src.listener import Listener, SocketListener, FileListener
 
 
 def create_test_logger(name: str, env_name: str) -> logging.Logger:
@@ -66,10 +66,15 @@ class Test:
             compose_files=[self.compose_file], compose_project_name=self.name
         )
         self.__ready_future: asyncio.Future = self.loop.create_future()
-        if listener_dest.suffix == ".sock":
-            self.listener = SocketListener(
-                listener_dest, self.queue, self.__ready_future, self.logger
-            )
+        match listener_dest.suffix:
+            case ".sock":
+                self.listener = SocketListener(
+                    listener_dest, self.queue, self.__ready_future, self.logger
+                )
+            case ".txt":
+                self.listener = FileListener(
+                    listener_dest, self.queue, self.__ready_future, self.logger
+                )
         self.logging_task: asyncio.Task = None
         self.validation_task: asyncio.Task = None
 
@@ -162,6 +167,8 @@ class Test:
         # Tear down the containers
         compose_down = partial(
             self.client.compose.down,
+            volumes=True,
+            remove_orphans=True,
             quiet=True,
         )
         await self.loop.run_in_executor(None, compose_down)
@@ -185,8 +192,7 @@ class Test:
                 pass
 
         # Shut down the listener
-        # await self.listender.stop()
-        self.listener.stop()
+        await self.listener.stop()
 
         self.logger.info("Cleanup complete for test: %s", self.name)
 
