@@ -12,6 +12,7 @@ services:
       MYSQL_PASSWORD: radpass
     restart: unless-stopped
     volumes:
+    - /tmp/${COMPOSE_PROJECT_NAME}-mariadb-data:/var/lib/mysql
     - ${DATA_PATH}/mariadb/default/init.sql:/docker-entrypoint-initdb.d/init.sql
     <<: *id001
   freeradius:
@@ -27,7 +28,7 @@ services:
     - ${DATA_PATH}/freeradius/default/mods-config/files/authorize:/etc/raddb/mods-config/files/authorize
     - ${DATA_PATH}/freeradius/default/sites-available/default:/etc/raddb/sites-available/default
     - ${DATA_PATH}/freeradius/env-setup.sh:/tmp/env-setup.sh
-    - ${LISTENER_DIR}/${COMPOSE_PROJECT_NAME}.sock:/var/run/test.sock
+    - ${LISTENER_DIR}/:/var/run/multi-server/
     command: radiusd -X
     restart: unless-stopped
     entrypoint:
@@ -36,6 +37,7 @@ services:
     - |
       apt-get update && \
       source /tmp/env-setup.sh && \
+      export TEST_PROJECT_NAME=${COMPOSE_PROJECT_NAME} && \
       ln -sf /etc/raddb/mods-available/json /etc/raddb/mods-enabled/json && \
       ln -sf /etc/raddb/mods-available/sql /etc/raddb/mods-enabled/sql && \
       exec /docker-entrypoint.sh "$@"
