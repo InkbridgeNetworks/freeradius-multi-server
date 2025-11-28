@@ -3,6 +3,7 @@
 import asyncio
 from functools import partial
 import logging
+import os
 from pathlib import Path
 import re
 
@@ -75,6 +76,10 @@ class Test:
                 self.listener = FileListener(
                     listener_dest, self.queue, self.__ready_future, self.logger
                 )
+        
+        # Set the environment variable for the listener config to use
+        os.environ["TEST_LOGGER_CONFIG"] = str(self.listener.listener_fr_config)
+
         self.logging_task: asyncio.Task = None
         self.validation_task: asyncio.Task = None
 

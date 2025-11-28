@@ -29,6 +29,7 @@ class Listener(ABC):
     """
 
     listener_dest: Path
+    listener_fr_config: Path = None # Filename for the FreeRADIUS config to use this listener
     msg_queue: asyncio.Queue
     ready_future: asyncio.Future
     logger: logging.Logger
@@ -92,6 +93,8 @@ class SocketListener(Listener):
     """
     A class to represent a listener that handles incoming messages from containers.
     """
+
+    listener_fr_config: Path = Path("linelog_socket")
 
     async def __handle_connection(
         self,
@@ -169,6 +172,7 @@ class FileListener(Listener):
     A class to represent a listener that writes incoming messages to a file.
     """
 
+    listener_fr_config: Path = Path("linelog_file")
     listener_source: aiofiles.threadpool.text.AsyncTextIOWrapper = None
 
     def __process_message(self, message: str) -> None:
