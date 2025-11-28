@@ -23,6 +23,7 @@ services:
     - ${DATA_PATH}/freeradius/default/trigger.conf:/etc/raddb/trigger.conf
     - ${DATA_PATH}/freeradius/default/radiusd.conf:/etc/raddb/radiusd.conf
     - ${DATA_PATH}/freeradius/default/clients.conf:/etc/raddb/clients.conf
+    - ${DATA_PATH}/freeradius/utils/${TEST_LOGGER_CONFIG}:/etc/raddb/mods-available/linelog_test_framework
     - ${DATA_PATH}/freeradius/default/mods-available/linelog:/etc/raddb/mods-available/linelog
     - ${DATA_PATH}/freeradius/default/mods-available/sql:/etc/raddb/mods-available/sql
     - ${DATA_PATH}/freeradius/default/mods-config/files/authorize:/etc/raddb/mods-config/files/authorize
@@ -40,6 +41,7 @@ services:
       export TEST_PROJECT_NAME=${COMPOSE_PROJECT_NAME} && \
       ln -sf /etc/raddb/mods-available/json /etc/raddb/mods-enabled/json && \
       ln -sf /etc/raddb/mods-available/sql /etc/raddb/mods-enabled/sql && \
+      ln -sf /etc/raddb/mods-available/linelog_test_framework /etc/raddb/mods-enabled/linelog_test_framework && \
       exec /docker-entrypoint.sh "$@"
     <<: *id001
   radius-client:

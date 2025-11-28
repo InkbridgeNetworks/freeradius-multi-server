@@ -547,8 +547,8 @@ radius {
 		triggers = yes
 
 		trigger {
-			connection_connecting = %log_unix_sock("connection_connecting ${...:name} connecting to ${...udp.ipaddr} connecting")
-			connection_closed = %log_unix_sock("connection_closed ${...:name} connection to ${...udp.ipaddr} closed")
+			connection_connecting = %linelog_test_framework("connection_connecting ${...:name} connecting to ${...udp.ipaddr} connecting")
+			connection_closed = %linelog_test_framework("connection_closed ${...:name} connection to ${...udp.ipaddr} closed")
 		}
 
 		#
@@ -583,8 +583,8 @@ radius {
 			triggers = yes
 
 			trigger {
-				request_sent = %log_unix_sock("request_sent ${....:name} request sent")
-				request_complete = %log_unix_sock("request_complete ${....:name} request complete")
+				request_sent = %linelog_test_framework("request_sent ${....:name} request sent")
+				request_complete = %linelog_test_framework("request_complete ${....:name} request complete")
 			}
 		}
 
