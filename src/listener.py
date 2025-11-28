@@ -1,9 +1,11 @@
 """A listener to handle incoming messages from containers."""
+
 from abc import ABC, abstractmethod
 import asyncio
 from enum import Enum
 import logging
 from pathlib import Path
+import platform
 
 import aiofiles
 from watchfiles import awatch, Change
@@ -217,7 +219,10 @@ class FileListener(Listener):
                 "Starting to watch for changes in %s",
                 self.listener_dest.parent,
             )
-            async for changes in awatch(self.listener_dest.parent):
+            async for changes in awatch(
+                self.listener_dest.parent,
+                force_polling=platform.system() == "Darwin",
+            ):  # macOS requires polling
                 for change in changes:
                     change_type, change_path = change
 
