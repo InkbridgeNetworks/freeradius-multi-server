@@ -1,0 +1,131 @@
+x-common-config: &id001
+  cap_add:
+  - NET_ADMIN
+  - SYS_PTRACE
+services:
+  mariadb:
+    image: mariadb:10.5
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: radius
+      MYSQL_USER: radius
+      MYSQL_PASSWORD: radpass
+    restart: unless-stopped
+    volumes:
+    - /tmp/${COMPOSE_PROJECT_NAME}-mariadb-data:/var/lib/mysql
+    - ${DATA_PATH}/mariadb/default/init.sql:/docker-entrypoint-initdb.d/init.sql
+    <<: *id001
+  homeserver1:
+    image: freeradius-server:ubuntu24-arm64
+    depends_on:
+    - mariadb
+    volumes:
+    - ${DATA_PATH}/freeradius/default/trigger.conf:/etc/raddb/trigger.conf
+    - ${DATA_PATH}/freeradius/default/radiusd.conf:/etc/raddb/radiusd.conf
+    - ${DATA_PATH}/freeradius/default/clients.conf:/etc/raddb/clients.conf
+    - ${DATA_PATH}/freeradius/utils/${TEST_LOGGER_CONFIG}:/etc/raddb/mods-available/linelog_test_framework
+    - ${DATA_PATH}/freeradius/default/mods-available/linelog:/etc/raddb/mods-available/linelog
+    - ${DATA_PATH}/freeradius/default/mods-available/sql:/etc/raddb/mods-available/sql
+    - ${DATA_PATH}/freeradius/default/mods-config/files/authorize:/etc/raddb/mods-config/files/authorize
+    - ${DATA_PATH}/freeradius/default/sites-available/default:/etc/raddb/sites-available/default
+    - ${DATA_PATH}/freeradius/env-setup.sh:/tmp/env-setup.sh
+    - ${LISTENER_DIR}/:/var/run/multi-server/
+    command: radiusd -X
+    restart: unless-stopped
+    entrypoint:
+    - bash
+    - -c
+    - |
+      apt-get update && \
+      source /tmp/env-setup.sh && \
+      export TEST_PROJECT_NAME=${COMPOSE_PROJECT_NAME} && \
+      ln -sf /etc/raddb/mods-available/json /etc/raddb/mods-enabled/json && \
+      ln -sf /etc/raddb/mods-available/sql /etc/raddb/mods-enabled/sql && \
+      ln -sf /etc/raddb/mods-available/linelog_test_framework /etc/raddb/mods-enabled/linelog_test_framework && \
+      exec /docker-entrypoint.sh "$@"
+    <<: *id001
+  homeserver2:
+    image: freeradius-server:ubuntu24-arm64
+    depends_on:
+    - mariadb
+    volumes:
+    - ${DATA_PATH}/freeradius/default/trigger.conf:/etc/raddb/trigger.conf
+    - ${DATA_PATH}/freeradius/default/radiusd.conf:/etc/raddb/radiusd.conf
+    - ${DATA_PATH}/freeradius/default/clients.conf:/etc/raddb/clients.conf
+    - ${DATA_PATH}/freeradius/utils/${TEST_LOGGER_CONFIG}:/etc/raddb/mods-available/linelog_test_framework
+    - ${DATA_PATH}/freeradius/default/mods-available/linelog:/etc/raddb/mods-available/linelog
+    - ${DATA_PATH}/freeradius/default/mods-available/sql:/etc/raddb/mods-available/sql
+    - ${DATA_PATH}/freeradius/default/mods-config/files/authorize:/etc/raddb/mods-config/files/authorize
+    - ${DATA_PATH}/freeradius/default/sites-available/default:/etc/raddb/sites-available/default
+    - ${DATA_PATH}/freeradius/env-setup.sh:/tmp/env-setup.sh
+    - ${LISTENER_DIR}/:/var/run/multi-server/
+    command: radiusd -X
+    restart: unless-stopped
+    entrypoint:
+    - bash
+    - -c
+    - |
+      apt-get update && \
+      source /tmp/env-setup.sh && \
+      export TEST_PROJECT_NAME=${COMPOSE_PROJECT_NAME} && \
+      ln -sf /etc/raddb/mods-available/json /etc/raddb/mods-enabled/json && \
+      ln -sf /etc/raddb/mods-available/sql /etc/raddb/mods-enabled/sql && \
+      ln -sf /etc/raddb/mods-available/linelog_test_framework /etc/raddb/mods-enabled/linelog_test_framework && \
+      exec /docker-entrypoint.sh "$@"
+    <<: *id001
+  freeradius:
+    image: freeradius-server:ubuntu24-arm64
+    ports:
+      - "1812:1812/udp"
+      - "1813:1813/udp"
+    depends_on:
+    - homeserver1
+    - homeserver2
+    volumes:
+    - ${DATA_PATH}/freeradius/proxy-multi-hs-use-files/radiusd.conf:/etc/raddb/radiusd.conf
+    - ${DATA_PATH}/freeradius/proxy-multi-hs-use-files/clients.conf:/etc/raddb/clients.conf
+    - ${DATA_PATH}/freeradius/utils/${TEST_LOGGER_CONFIG}:/etc/raddb/mods-available/linelog_test_framework
+    - ${DATA_PATH}/freeradius/default/mods-available/linelog:/etc/raddb/mods-available/linelog
+    - ${DATA_PATH}/freeradius/proxy-multi-hs-use-files/sites-available/default:/etc/raddb/sites-available/default
+    - ${DATA_PATH}/freeradius/proxy-multi-hs-use-files/mods-available/radius:/etc/raddb/mods-available/radius
+    - ${DATA_PATH}/freeradius/env-setup.sh:/tmp/env-setup.sh
+    - ${LISTENER_DIR}/:/var/run/multi-server
+    command: radiusd -X
+    restart: unless-stopped
+    entrypoint:
+    - bash
+    - -c
+    - |
+      apt-get update && \
+      source /tmp/env-setup.sh && \
+      export TEST_PROJECT_NAME=${COMPOSE_PROJECT_NAME} && \
+      ln -sf /etc/raddb/mods-available/radius /etc/raddb/mods-enabled/radius && \
+      ln -sf /etc/raddb/mods-available/linelog_test_framework /etc/raddb/mods-enabled/linelog_test_framework && \
+      exec /docker-entrypoint.sh "$@"
+    <<: *id001
+  load-generator:
+    image: freeradius-server:ubuntu24-arm64
+    volumes:
+    - ${DATA_PATH}/freeradius/load-generator/radiusd.conf:/etc/raddb/radiusd.conf
+    - ${DATA_PATH}/freeradius/load-generator/mods-available/linelog:/etc/raddb/mods-available/linelog
+    - ${DATA_PATH}/freeradius/load-generator/sites-available/load-generator:/etc/raddb/sites-available/load-generator
+    - ${DATA_PATH}/freeradius/load-generator/sites-available/default:/etc/raddb/sites-available/default
+    - ${DATA_PATH}/freeradius/load-generator/sites-available/inner-tunnel:/etc/raddb/sites-available/inner-tunnel
+    - ${DATA_PATH}/freeradius/utils/${TEST_LOGGER_CONFIG}:/etc/raddb/mods-available/linelog_test_framework
+    - ${DATA_PATH}/freeradius/env-setup.sh:/tmp/env-setup.sh
+    - ${DATA_PATH}/freeradius/load-generator/load-generator-tests/:/etc/raddb/load-generator-tests/
+    command: radiusd -X
+    entrypoint:
+    - bash
+    - -c
+    - |
+      apt-get update && \
+      apt-get install -y snmp && \
+      apt-get install -y snmp-mibs-downloader && \
+      source /tmp/env-setup.sh && \
+      export TEST_PROJECT_NAME=${COMPOSE_PROJECT_NAME} && \
+      ln -sf /etc/raddb/mods-available/linelog_test_framework /etc/raddb/mods-enabled/linelog_test_framework && \
+      ln -sf /etc/raddb/sites-available/load-generator /etc/raddb/sites-enabled/load-generator && \
+      mkdir /etc/raddb/stats && chmod 777 /etc/raddb/stats && \
+      exec /docker-entrypoint.sh "$@"
+    <<: *id001
