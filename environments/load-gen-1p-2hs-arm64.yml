@@ -108,6 +108,7 @@ services:
     volumes:
     - ${DATA_PATH}/freeradius/load-generator/radiusd.conf:/etc/raddb/radiusd.conf
     - ${DATA_PATH}/freeradius/load-generator/mods-available/linelog:/etc/raddb/mods-available/linelog
+    - ${DATA_PATH}/freeradius/load-generator/mods-available/radius:/etc/raddb/mods-available/radius
     - ${DATA_PATH}/freeradius/load-generator/sites-available/load-generator:/etc/raddb/sites-available/load-generator
     - ${DATA_PATH}/freeradius/load-generator/sites-available/default:/etc/raddb/sites-available/default
     - ${DATA_PATH}/freeradius/load-generator/sites-available/inner-tunnel:/etc/raddb/sites-available/inner-tunnel
@@ -125,6 +126,7 @@ services:
       source /tmp/env-setup.sh && \
       export TEST_PROJECT_NAME=${COMPOSE_PROJECT_NAME} && \
       ln -sf /etc/raddb/mods-available/linelog_test_framework /etc/raddb/mods-enabled/linelog_test_framework && \
+      ln -sf /etc/raddb/mods-available/radius /etc/raddb/mods-enabled/radius && \
       ln -sf /etc/raddb/sites-available/load-generator /etc/raddb/sites-enabled/load-generator && \
       mkdir /etc/raddb/stats && chmod 777 /etc/raddb/stats && \
       exec /docker-entrypoint.sh "$@"

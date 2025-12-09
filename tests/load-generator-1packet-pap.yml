@@ -1,0 +1,27 @@
+timeout: 40
+state_order: sequence
+states:
+  state_1:
+    verify:
+      timeout: 15
+      trigger_mode: unordered
+      triggers:
+      - request_sent:
+          all:
+            pattern:
+              reg_pattern: (\w+) request sent
+            range:
+              minimum: 4
+              maximum: 10
+      - request_complete:
+          may_pattern:
+            reg_pattern: (\w+) request complete
+      - request_state_reapable:
+          may_pattern:
+            reg_pattern: (\w+) request reapable
+      - request_state_cancel:
+          may_pass:
+            msg: "may_pass should always pass"
+      - foo:
+          may_never_fire:
+            msg: "may_foo should not have fired"

@@ -22,13 +22,6 @@ server loadgen-client {
         # num_messages = 1
         # priority       = 0
 
-        type radius {
-            target_host   = "freeradius"
-            target_port   = 1812
-            shared_secret = "testing123"
-            packet_type   = "Access-Request"
-        }
-
         #
 		#  For now, only 'step' transport is available.
 		#
@@ -116,19 +109,24 @@ server loadgen-client {
     #  taken from the `namespace`.
     #
     recv Access-Request {
-        accept
-    }
+        # Optional: use unlang to modify packet before calling radius module to send
+        # requests to the upstream RADIUS server(s).
 
+        # Use the radius module to send the request to the upstream RADIUS server(s).
+        radius
+    }
 
     authenticate pap {
         pap
     }
 
     send Access-Accept {
+        %linelog("load-generator Access-Accept sent")
         ok
     }
 
     send Access-Reject {
+        %linelog("load-generator Access-Reject sent")
         ok
     }
 
