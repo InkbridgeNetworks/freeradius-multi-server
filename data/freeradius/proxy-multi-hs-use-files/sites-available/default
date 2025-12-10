@@ -863,7 +863,7 @@ recv Access-Request {
 	#
 	# Proxy network example
 	#
-	control.Auth-Type := "proxy-network.example"
+	control.Auth-Type := "redundant-load-balance-proxy"
 	
 	#
 	#  Look in an SQL database. The schema of the database is
@@ -971,7 +971,7 @@ recv Status-Server {
 #
 ######################################################################
 
-authenticate proxy-network.example {
+authenticate redundant-load-balance-proxy {
 	redundant-load-balance {
 		remoteradius1
 		remoteradius2
