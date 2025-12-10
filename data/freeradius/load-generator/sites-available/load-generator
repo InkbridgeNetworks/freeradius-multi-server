@@ -108,25 +108,43 @@ server loadgen-client {
     #  The rest of the recv/send sections are protocol specific, and are
     #  taken from the `namespace`.
     #
+#    recv Access-Request {
+#        # Optional: use unlang to modify packet before calling radius module to send
+#        # requests to the upstream RADIUS server(s).
+#
+#        # Use the radius module to send the request to the upstream RADIUS server(s).
+#        radius
+#        if (ok) {
+#            accept
+#        }   
+#    }
+#
+#    authenticate radius {
+#        radius
+#    }
+
     recv Access-Request {
         # Optional: use unlang to modify packet before calling radius module to send
         # requests to the upstream RADIUS server(s).
 
-        # Use the radius module to send the request to the upstream RADIUS server(s).
+        # The Auth-Type value is specifically set to use the load-generator-proxy authenticate logic
+        control.Auth-Type := "load-generator-proxy"
+    }
+
+    authenticate load-generator-proxy {
+        # The Auth-Type value is specifically set to use the load-generator-proxy authenticate logic
+        # The radius module udp { ... } configuration defines where the requests are sent; refer
+        # to mods-available/radius for that configuration.
         radius
     }
 
-    authenticate pap {
-        pap
-    }
-
     send Access-Accept {
-        %linelog("load-generator Access-Accept sent")
+        %linelog("load-generator: send Access-Accept STARTED")
         ok
     }
 
     send Access-Reject {
-        %linelog("load-generator Access-Reject sent")
+        %linelog("load-generator: send Access-Reject STARTED")
         ok
     }
 
