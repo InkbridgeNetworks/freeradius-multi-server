@@ -115,6 +115,7 @@ services:
     - ${DATA_PATH}/freeradius/utils/${TEST_LOGGER_CONFIG}:/etc/raddb/mods-available/linelog_test_framework
     - ${DATA_PATH}/freeradius/env-setup.sh:/tmp/env-setup.sh
     - ${DATA_PATH}/freeradius/load-generator/load-generator-tests/:/etc/raddb/load-generator-tests/
+    - ${DATA_PATH}/freeradius/load-generator/stats/:/etc/raddb/stats/
     command: radiusd -X
     entrypoint:
     - bash
@@ -128,6 +129,5 @@ services:
       ln -sf /etc/raddb/mods-available/linelog_test_framework /etc/raddb/mods-enabled/linelog_test_framework && \
       ln -sf /etc/raddb/mods-available/radius /etc/raddb/mods-enabled/radius && \
       ln -sf /etc/raddb/sites-available/load-generator /etc/raddb/sites-enabled/load-generator && \
-      mkdir /etc/raddb/stats && chmod 777 /etc/raddb/stats && \
       exec /docker-entrypoint.sh "$@"
     <<: *id001
