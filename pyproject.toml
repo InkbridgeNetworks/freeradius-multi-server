@@ -20,6 +20,7 @@ authors = [
 ]
 description = "A tool to run FreeRADIUS multi-server tests."
 readme = "README.md"
+license-files = ["LICENSE"]
 requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
