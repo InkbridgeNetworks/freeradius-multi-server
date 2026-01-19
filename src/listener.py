@@ -264,6 +264,18 @@ class FileListener(Listener):
                                 "Opened listener source for file %s",
                                 self.listener_dest,
                             )
+                            # Process any lines already in the file when it's first created
+                            async for line in self.listener_source:
+                                message = line.strip()
+                                self.logger.debug(
+                                    "Received message: %s", message
+                                )
+                                self.__process_message(message)
+
+                            self.logger.debug(
+                                "Processed all existing lines in file %s",
+                                self.listener_dest,
+                            )
                         case Change.deleted:
                             self.logger.debug(
                                 "Detected deletion of file %s",
