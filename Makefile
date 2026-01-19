@@ -18,7 +18,11 @@ PHONY_TARGETS += test-framework test.test-framework render
 .PHONY: $(PHONY_TARGETS)
 
 test-framework:
-	@DATA_PATH=$$PWD/data python3 -m src.multi_server_test $(filter-out $(PHONY_TARGETS),$(MAKECMDGOALS))
+	@if [ -z "$$DATA_PATH" ]; then \
+		DATA_PATH=$$PWD/data; \
+	fi
+	@echo "DATA_PATH env value for test environment config: $$DATA_PATH"
+	@python3 -m src.multi_server_test $(filter-out $(PHONY_TARGETS),$(MAKECMDGOALS))
 	@echo "Multi-server test framework completed."
 
 test.test-framework: test-framework
