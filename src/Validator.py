@@ -135,8 +135,8 @@ class Validator:
                     output += f"{' ' * 4}{colored(v, 'red')}\n"
 
         output += "-" * (len(header) - 1) + "\n"
-        output += f"Matched: {colored(matched, 'green')} / {total} "
-        output += f"(Failures: {colored(total - matched, 'red')})\n"
+        output += f"Matched: {colored(matched, 'green') if matched > 0 else matched} / {total} "
+        output += f"(Failures: {colored(total - matched, 'red') if total - matched > 0 else total - matched})\n"
         output += "-" * (len(header) - 1) + "\n"
         return output
 

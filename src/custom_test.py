@@ -294,8 +294,32 @@ class Test:
         # Remove the coloring from the test results before logging to file
         def strip_ansi(text):
             ansi_escape = re.compile(r"\x1B\[[0-?]*[ -/]*[@-~]")
-            return ansi_escape.sub("", text)
 
+            color_prefixes = {
+                "31": "[Failed]",
+                "32": "[Passed]",
+                "33": "[Mixed]",
+            }
+
+            formatted_text = ""
+
+            for line in text.splitlines():
+                prefix = ""
+
+                # Detect color codes and replace with text prefixes to the line
+                for code, label in color_prefixes.items():
+                    if f"\x1b[{code}m" in line:
+                        prefix = label + " "
+                        break
+                
+                clean_line = ansi_escape.sub("", line)
+                if prefix:
+                    formatted_text += f"{prefix}{clean_line}\n"
+                else:
+                    formatted_text += clean_line + "\n"
+            
+            return formatted_text
+        
         test_results = [strip_ansi(r) for r in test_results]
 
         file_logger = logging_helper.get_file_logger()
