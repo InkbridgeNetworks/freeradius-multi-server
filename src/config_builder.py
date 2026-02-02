@@ -183,6 +183,52 @@ def generate_config_files(
     if other_configs:
         write_yaml_to_file(other_configs, test_output)
 
+def render_template_only(file_path: Path, listener_type: str, output_path: Path = None) -> None:
+    """
+    Renders a Jinja2 template configuration file without additional parsing.
+
+    Args:
+        file_path (Path): The path to the Jinja2 template configuration file.
+        listener_type (str): The type of listener to use (e.g., 'unix', 'file').
+        output_path (Path, optional): The path to output the rendered configuration file. If None,
+            defaults to the same name as the input file without the .j2 extension.
+            Defaults to None.
+
+    Raises:
+        FileNotFoundError: If the configuration file does not exist.
+        ValueError: If the configuration file is not a Jinja2 template.
+    """
+    # If the config file does not exist, raise an error
+    if not file_path.exists():
+        raise FileNotFoundError(
+            f"Configuration file {file_path} does not exist."
+        )
+
+    if file_path.suffix != ".j2":
+        raise ValueError("Only .j2 template files are supported for auxiliary rendering.")
+
+    # Set some variables
+    config_vars = {
+        "test": {
+            "listener_type": listener_type,
+        }
+    }
+
+    # Render the Jinja2 template
+    template_loader = jinja2.FileSystemLoader(searchpath=file_path.parent)
+    template_env = jinja2.Environment(loader=template_loader)
+    template_env.globals.update(
+        os=os,
+    )
+    template = template_env.get_template(file_path.name)
+    rendered_config = template.render(config_vars)
+
+    # Write the rendered configuration to the output file
+    if output_path is None:
+        output_path = file_path.with_suffix("")
+
+    with open(output_path, "w", encoding="utf-8") as file:
+        file.write(rendered_config)
 
 def parse_args(args=None, prog=__package__) -> argparse.Namespace:
     """
@@ -230,6 +276,20 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
         help="Path to the directory to store socket files.",
         default=Path("/var/run/multi-test"),
     )
+    parser.add_argument(
+        "--listener_type",
+        dest="listener_type",
+        type=str,
+        help="Type of listener to use (e.g., 'unix', 'file').",
+        default="unix",
+    )
+    parser.add_argument(
+        "--aux-file",
+        dest="auxiliary",
+        action="store_true",
+        help="Enable auxiliary features. Enables rendering any auxiliary configurations " +
+        "by just skipping other parsing logic and rendering the Jinja2 templates as-is.",
+    )
     return parser.parse_args(args)
 
 
@@ -239,6 +299,19 @@ def interface() -> None:
     """
     parsed_args = parse_args()
 
+    if parsed_args.auxiliary:
+        try:
+            render_template_only(
+                Path(parsed_args.config_file),
+                parsed_args.listener_type
+            )
+        except (FileNotFoundError, ValueError) as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        print("Auxiliary configuration file rendered successfully.")
+        sys.exit(0)
+
     # Set the DATA_PATH environment variable based on the parsed argument
     if not parsed_args.data_path.exists():
         print(
@@ -247,6 +320,8 @@ def interface() -> None:
         parsed_args.data_path.mkdir(parents=True, exist_ok=True)
     print(f"Setting DATA_PATH to {parsed_args.data_path}")
     os.environ["DATA_PATH"] = str(parsed_args.data_path)
+
+    # TODO: Make the builder less dependent on global state
 
     if parsed_args.socket_dir:
         if not parsed_args.socket_dir.exists():
