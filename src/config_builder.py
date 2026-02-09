@@ -183,14 +183,16 @@ def generate_config_files(
     if other_configs:
         write_yaml_to_file(other_configs, test_output)
 
-def render_template_only(file_path: Path, listener_type: str, output_path: Path = None) -> None:
+def render_template_only(file_path: Path, listener_type: str, include_path: list = None, output_path: Path = None) -> None:
     """
     Renders a Jinja2 template configuration file without additional parsing.
 
     Args:
         file_path (Path): The path to the Jinja2 template configuration file.
         listener_type (str): The type of listener to use (e.g., 'unix', 'file').
-        output_path (Path, optional): The path to output the rendered configuration file. If None,
+        include_path (list, optional): Additional search paths for Jinja2 templates.
+            Defaults to None.
+        output_path (Path, optional): The path to output the rendered configuration file.
             defaults to the same name as the input file without the .j2 extension.
             Defaults to None.
 
@@ -215,7 +217,7 @@ def render_template_only(file_path: Path, listener_type: str, output_path: Path 
     }
 
     # Render the Jinja2 template
-    template_loader = jinja2.FileSystemLoader(searchpath=file_path.parent)
+    template_loader = jinja2.FileSystemLoader(searchpath=[file_path.parent] + (include_path or []))
     template_env = jinja2.Environment(loader=template_loader)
     template_env.globals.update(
         os=os,
@@ -290,6 +292,13 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
         help="Enable auxiliary features. Enables rendering any auxiliary configurations " +
         "by just skipping other parsing logic and rendering the Jinja2 templates as-is.",
     )
+    parser.add_argument(
+        "--include-path",
+        dest="include_path",
+        help="Additional search path for Jinja2 templates.",
+        action="append",
+        default=[],
+    )
     return parser.parse_args(args)
 
 
@@ -303,7 +312,8 @@ def interface() -> None:
         try:
             render_template_only(
                 Path(parsed_args.config_file),
-                parsed_args.listener_type
+                parsed_args.listener_type,
+                include_path=parsed_args.include_path,
             )
         except (FileNotFoundError, ValueError) as e:
             print(f"Error: {e}", file=sys.stderr)
