@@ -183,13 +183,14 @@ def generate_config_files(
     if other_configs:
         write_yaml_to_file(other_configs, test_output)
 
-def render_template_only(file_path: Path, listener_type: str, include_path: list = None, output_path: Path = None) -> None:
+def render_template_only(file_path: Path, variables_path: Path = None, include_path: list = None, output_path: Path = None) -> None:
     """
     Renders a Jinja2 template configuration file without additional parsing.
 
     Args:
         file_path (Path): The path to the Jinja2 template configuration file.
-        listener_type (str): The type of listener to use (e.g., 'unix', 'file').
+        variables_path (Path, optional): The path to a YAML file containing variables for rendering.
+            Defaults to None.
         include_path (list, optional): Additional search paths for Jinja2 templates.
             Defaults to None.
         output_path (Path, optional): The path to output the rendered configuration file.
@@ -210,11 +211,29 @@ def render_template_only(file_path: Path, listener_type: str, include_path: list
         raise ValueError("Only .j2 template files are supported for auxiliary rendering.")
 
     # Set some variables
-    config_vars = {
-        "test": {
-            "listener_type": listener_type,
-        }
-    }
+    config_vars = {}
+    if variables_path is not None:
+        # Check if the variables file exists
+        if not variables_path.exists():
+            # Try to file the variables file treating the path as relative to the configuration file
+            potential_path = file_path.parent / variables_path
+            if potential_path.exists():
+                variables_path = potential_path
+            else:
+                # Try to find the variables treating the path as relative to the include paths
+                found = False
+                for path in include_path or []:
+                    potential_path = Path(path, variables_path)
+                    if potential_path.exists():
+                        variables_path = potential_path
+                        found = True
+                        break
+                if not found:
+                    raise FileNotFoundError(
+                        f"Variables file {variables_path} does not exist."
+                    )
+        with open(variables_path, "r", encoding="utf-8") as var_file:
+            config_vars = yaml.safe_load(var_file)
 
     # Render the Jinja2 template
     template_loader = jinja2.FileSystemLoader(searchpath=[file_path.parent] + (include_path or []))
@@ -223,7 +242,11 @@ def render_template_only(file_path: Path, listener_type: str, include_path: list
         os=os,
     )
     template = template_env.get_template(file_path.name)
-    rendered_config = template.render(config_vars)
+
+    try:
+        rendered_config = template.render(config_vars)
+    except Exception as e:
+        raise ValueError(f"Error rendering {file_path}: {e}")
 
     # Write the rendered configuration to the output file
     if output_path is None:
@@ -279,11 +302,11 @@ def parse_args(args=None, prog=__package__) -> argparse.Namespace:
         default=Path("/var/run/multi-test"),
     )
     parser.add_argument(
-        "--listener_type",
-        dest="listener_type",
-        type=str,
-        help="Type of listener to use (e.g., 'unix', 'file').",
-        default="unix",
+        "--vars-file",
+        dest="variables_path",
+        type=Path,
+        help="Path to a YAML file containing variables for rendering.",
+        default=None,
     )
     parser.add_argument(
         "--aux-file",
@@ -312,7 +335,7 @@ def interface() -> None:
         try:
             render_template_only(
                 Path(parsed_args.config_file),
-                parsed_args.listener_type,
+                variables_path=parsed_args.variables_path,
                 include_path=parsed_args.include_path,
             )
         except (FileNotFoundError, ValueError) as e:
