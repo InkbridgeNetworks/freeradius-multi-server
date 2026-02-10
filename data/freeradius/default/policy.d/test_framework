@@ -1,0 +1,3 @@
+test_framework_log_request {
+    %linelog_test_framework("request_received %json.encode('&request.[*]')")
+}

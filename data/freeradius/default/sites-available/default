@@ -733,6 +733,8 @@ recv Access-Request {
 	#
 	filter_username
 
+	test_framework_log_request
+
 	#
 	#  Some broken equipment sends passwords with embedded
 	#  zeros, i.e. the debug output will show:

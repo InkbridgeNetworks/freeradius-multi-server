@@ -28,6 +28,7 @@ services:
     - ${DATA_PATH}/freeradius/default/mods-available/sql:/etc/raddb/mods-available/sql
     - ${DATA_PATH}/freeradius/default/mods-config/files/authorize:/etc/raddb/mods-config/files/authorize
     - ${DATA_PATH}/freeradius/default/sites-available/default:/etc/raddb/sites-available/default
+    - ${DATA_PATH}/freeradius/default/policy.d/test_framework:/etc/raddb/policy.d/test_framework
     - ${DATA_PATH}/freeradius/env-setup.sh:/tmp/env-setup.sh
     - ${LISTENER_DIR}/:/var/run/multi-server/
     command: radiusd -X

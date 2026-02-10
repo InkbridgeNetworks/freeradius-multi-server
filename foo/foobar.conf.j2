@@ -1,0 +1,11 @@
+# Listener configuration
+
+listener {
+{% if test.listener_type == "unix" %}
+    {% include "linelog_socket" %}
+{% elif test.listener_type == "file" %}
+    {% include "linelog_file" %}
+{% else %}
+    type = {{ test.listener_type }}
+{% endif %}
+}

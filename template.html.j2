@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title | default("Jinja Example") }}</title>
+</head>
+<body>
+
+<h1>Hello {{ user_name }}</h1>
+
+{% if items %}
+    <p>You have {{ items | length }} items:</p>
+    <ul>
+    {% for item in items %}
+        <li>{{ item }}</li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No items found.</p>
+{% endif %}
+
+<footer>
+    Rendered at {{ timestamp }}
+</footer>
+
+</body>
+</html>
