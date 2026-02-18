@@ -19,6 +19,9 @@ SUCH DAMAGE."""
 
 import re
 import logging
+import json
+
+from src.rules.utils import safe_json_load
 
 # All rule methods should return True if the rule passes, False otherwise.
 
@@ -127,7 +130,7 @@ RULES_MAP.update({"pass": pass_rule, "fire": pass_rule})
 
 
 def pattern(
-    reg_pattern: str | re.Pattern[str], logger: logging.Logger, string: str
+    reg_pattern: str | re.Pattern[str], logger: logging.Logger, string: str | bytes
 ) -> bool:
     """
     Check if a string matches a given regex pattern.
@@ -135,11 +138,14 @@ def pattern(
     Args:
         pattern (str | re.Pattern[str]): The regex pattern to match against.
         logger (logging.Logger): Logger for debug output.
-        string (str): The string to be checked.
+        string (str | bytes): The string to be checked.
 
     Returns:
         bool: True if the string matches the pattern, False otherwise.
     """
+    if isinstance(string, bytes):
+        string = string.decode("utf-8", errors="ignore")
+
     if isinstance(reg_pattern, str):
         reg_pattern = re.compile(reg_pattern)
 
@@ -155,7 +161,7 @@ RULES_MAP.update({"pattern": pattern, "regex": pattern})
 
 
 def within_range(
-    minimum: float, maximum: float, logger: logging.Logger, string: float | str
+    minimum: float, maximum: float, logger: logging.Logger, string: float | str | bytes
 ) -> bool:
     """
     Check if a number is within a specified range.
@@ -164,7 +170,7 @@ def within_range(
         minimum (float): The minimum value of the range.
         maximum (float): The maximum value of the range.
         logger (logging.Logger): Logger for debug output.
-        string (float | str): The number to be checked.
+        string (float | str | bytes): The number to be checked.
 
     Returns:
         bool: True if the number is within the range, False otherwise.
@@ -172,6 +178,9 @@ def within_range(
     logger.debug(
         "Checking if number is within range: %f - %f", minimum, maximum
     )
+    if isinstance(string, bytes):
+        string = string.decode("utf-8", errors="ignore")
+
     logger.debug("Number to check: %s", string)
 
     if isinstance(string, str):
@@ -211,19 +220,22 @@ def is_code_safe(_source: str, logger: logging.Logger) -> bool:
     return True
 
 
-def code(block: str, logger: logging.Logger, string: str) -> bool:
+def code(block: str, logger: logging.Logger, string: str | bytes) -> bool:
     """
     Execute a custom code block for validation.
 
     Args:
         block (str): The code block to execute.
         logger (logging.Logger): Logger for debug output.
-        string (str): The string to be validated.
+        string (str | bytes): The string to be validated.
 
     Returns:
         bool: The result of the executed code block.
     """
     logger.debug("Evaluating custom code block.")
+    if isinstance(string, bytes):
+        string = string.decode("utf-8", errors="ignore")
+
     if not is_code_safe(block, logger):
         logger.error("Unsafe code block detected. Execution aborted.")
         return False
@@ -245,6 +257,105 @@ def code(block: str, logger: logging.Logger, string: str) -> bool:
 
 
 RULES_MAP.update({"code": code})
+
+def __json_rule(logger: logging.Logger, string: dict, **kwargs) -> bool:
+    """
+    Internal helper function for the 'json' rule to validate a JSON object
+    against specified conditions.
+
+    Args:
+        logger (logging.Logger): Logger for debug output.
+        string (dict): The JSON object to be validated.
+        **kwargs: Conditions to check within the JSON object.
+    
+    Returns:
+        bool: True if all conditions are met, False otherwise.
+    """
+    logger.debug("Evaluating 'json' rule with conditions: %s", kwargs)
+    for key, conditions in kwargs.items():
+        logger.debug(
+            "Processing key '%s' with conditions: %s", key, conditions
+        )
+        if key not in string:
+            logger.debug("Key '%s' not found in JSON object.", key)
+            return False
+        value = string[key]
+        logger.debug("Evaluating key '%s' with value: %s", key, value)
+        for condition, condition_args in conditions.items():
+            logger.debug(
+                "Evaluating condition '%s' for key '%s' with args: %s",
+                condition,
+                key,
+                condition_args,
+            )
+
+            rule_func = RULES_MAP.get(condition)
+            if not rule_func:
+                logger.debug(
+                    "Unknown condition '%s' for key '%s'.", condition, key
+                )
+                return False
+
+            # Cast value to expected type if annotation exists
+            logger.debug("Type of value before casting: %s", type(value))
+
+            if "json_rule" == rule_func.__name__:
+                # Use this internal helper to avoid double JSON parsing and Base64 encoding
+                rule_func = __json_rule
+                value_cast = value
+            else:
+                value_cast = str(value)
+            logger.debug(
+                "Type of value after casting: %s", type(value_cast)
+            )
+
+            if not rule_func(
+                **condition_args, logger=logger, string=value_cast
+            ):
+                logger.debug(
+                    "Condition '%s' failed for key '%s' with value: %s",
+                    condition,
+                    key,
+                    value_cast,
+                )
+                return False
+
+    logger.debug("'json' rule passed.")
+    return True
+
+def json_rule(logger: logging.Logger, string: str | bytes, **kwargs) -> bool:
+    """
+    Check if a JSON string meets specified conditions.
+
+    Args:
+        logger (logging.Logger): Logger for debug output.
+        string (str | bytes): The JSON string to be validated.
+        **kwargs: Conditions to check within the JSON object.
+
+    Returns:
+        bool: True if all conditions are met, False otherwise.
+    """
+    logger.debug("Received args: %s", kwargs)
+    logger.debug("Received string: %s", string)
+
+    try:
+        data = safe_json_load(logger, string)
+        if not data:
+            logger.debug("No valid JSON data could be parsed.")
+            return False
+
+        logger.debug("Parsed JSON data: %s", data)
+        return __json_rule(logger, data, **kwargs)
+
+    except json.JSONDecodeError as e:
+        logger.debug("Failed to parse JSON: %s", e)
+    except Exception as e:
+        logger.debug("Error evaluating 'json' rule: %s", e)
+
+    return False
+
+
+RULES_MAP.update({"json": json_rule})
 
 
 def rule_methods() -> dict[str, callable]:
