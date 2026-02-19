@@ -73,7 +73,6 @@ class Listener(ABC):
             "start method must be implemented by subclasses."
         )
 
-    # async def stop(self) -> bool:
     async def stop(self) -> bool:
         """
         Stops and cleans up the listener.
@@ -129,10 +128,22 @@ class SocketListener(Listener):
         try:
             while True:
                 data = await reader.readuntil(b"\n")
-                message = data.decode().strip()
-                self.logger.debug("Received message: %s", message)
+                message = data.rstrip(b"\n")
 
-                trigger_name, trigger_value = message.split(" ", 1)
+                space_index = message.find(b" ")
+                if space_index == -1:
+                    self.logger.warning(
+                        "Invalid message format: %s. Expected 'trigger_name trigger_value'.",
+                        message,
+                    )
+                    continue
+                trigger_name = message[:space_index].decode(
+                    "ascii", errors="ignore"
+                )
+
+                trigger_value = message[space_index + 1 :]
+
+                self.logger.debug("Received message: %s", message)
 
                 self.msg_queue.put_nowait((trigger_name, trigger_value))
         except asyncio.IncompleteReadError:
