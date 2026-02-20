@@ -108,8 +108,6 @@ def reconnect(network: ValidNetwork, targets: list[ValidContainer]) -> None:
 EVENTS_MAP.update({"reconnect": reconnect, "network_reconnect": reconnect})
 
 
-# TODO: the interface that tc operates on may be different for different containers
-#       we may need to pass that in as an argument or determine it dynamically
 def packet_loss(
     source: ValidContainer, interface: str, loss: float, logger: logging.Logger
 ) -> None:
@@ -131,42 +129,22 @@ def packet_loss(
         detach=True,
     )
 
-    try:
-        result = docker.execute(
-            source,
-            ["bash", "-c", "ping -c 10 -W 2 8.8.8.8 || true"],
-            detach=False,
-        )
-    except DockerException as e:
-        # Extract the stdout content from the exception
-        stdout = e.stdout or ""
-        stderr = e.stderr or ""
-        exit_code = e.return_code or None
+    # Verify that the packet loss is applied
+    result = docker.execute(
+        source,
+        ["tc", "qdisc", "show", "dev", interface],
+        detach=False,
+    )
 
-        # Check if it's the expected 100% loss case
-        if f"{loss}% packet loss" in stdout:
-            result = stdout
-        else:
-            logger.error(
-                f"Unexpected ping failure (code {exit_code}): {stdout}\n{stderr}"
-            )
-            return
-    else:
-        stdout = result
-        result = stdout
-
-    # Now continue processing result
-    if "100% packet loss" in result or f"{loss}% packet loss" in result:
-        logger.debug(
-            f"Packet loss of {loss}% verified on {source} ({interface})"
-        )
-    else:
+    if f"loss {loss}%" not in result:
         logger.error(
-            f"Unexpected packet loss result on {source} ({interface})"
+            f"Failed to verify packet loss on {source} ({interface})."
         )
-        logger.debug(f"Ping output:\n{result}")
+        logger.debug(f"tc output:\n{result}")
+        return
 
     logger.debug(f"Applied {loss}% packet loss on {source} ({interface})")
+    return
 
 
 EVENTS_MAP.update({"packet_loss": packet_loss})
